@@ -1,3 +1,6 @@
+import ws from 'ws';
+
+(global as any).WebSocket = ws;
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
   DatabaseAdapter, 
