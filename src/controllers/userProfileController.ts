@@ -27,6 +27,10 @@ export const userProfileSchema = z.object({
     waterIntakeDate: z.string().optional(),
     isPeriodTrackerEnabled: z.boolean().optional(),
     wellnessGoal: z.string().optional(),
+    cycleDay: z.number().optional(),
+    cycleLength: z.number().optional(),
+    nextPeriodDate: z.string().optional(),
+    nextAppointment: z.string().optional(),
   }),
 });
 
@@ -64,7 +68,7 @@ export const updateProfileSchema = z.object({
 });
 
 export class UserProfileController {
-  constructor(private userProfileService: UserProfileService) {}
+  constructor(private userProfileService: UserProfileService) { }
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -93,6 +97,30 @@ export class UserProfileController {
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const profile = await this.userProfileService.updateProfile(req.params.id as string, req.body);
+      res.status(200).json({
+        success: true,
+        data: profile
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getHistory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const history = await this.userProfileService.getProfileHistory(req.params.id as string);
+      res.status(200).json({
+        success: true,
+        data: history
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  startPeriod = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await this.userProfileService.startPeriod(req.params.id as string);
       res.status(200).json({
         success: true,
         data: profile

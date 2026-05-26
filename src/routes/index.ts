@@ -8,6 +8,7 @@ import enrollmentRoutes from './enrollmentRoutes';
 import userProfileRoutes from './userProfileRoutes';
 import appointmentRoutes from './appointmentRoutes';
 import authRoutes from './authRoutes';
+import classRoutes from './classRoutes';
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use('/doctors', doctorRoutes);
 router.use('/enrollments', enrollmentRoutes);
 router.use('/profiles', userProfileRoutes);
 router.use('/appointments', appointmentRoutes);
+router.use('/classes', classRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

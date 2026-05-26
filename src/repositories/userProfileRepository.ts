@@ -1,4 +1,4 @@
-import { DatabaseAdapter, CreateUserProfileInput, UserProfile } from '../database/interfaces';
+import { DatabaseAdapter, CreateUserProfileInput, UserProfile, UserProfileHistory, CreateUserProfileHistoryInput } from '../database/interfaces';
 
 export class UserProfileRepository {
   constructor(private dbAdapter: DatabaseAdapter) {}
@@ -13,5 +13,13 @@ export class UserProfileRepository {
 
   async update(id: string, updates: Partial<UserProfile>): Promise<UserProfile> {
     return this.dbAdapter.updateUserProfile(id, updates);
+  }
+
+  async saveHistory(history: CreateUserProfileHistoryInput): Promise<UserProfileHistory> {
+    return this.dbAdapter.saveUserProfileHistory(history);
+  }
+
+  async getHistory(userId: string): Promise<UserProfileHistory[]> {
+    return this.dbAdapter.getUserProfileHistory(userId);
   }
 }

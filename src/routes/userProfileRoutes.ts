@@ -18,6 +18,8 @@ const userProfileController = new UserProfileController(userProfileService);
 router.post('/', validate(userProfileSchema), userProfileController.create);
 router.get('/:id', userProfileController.getById);
 router.patch('/:id', validate(updateProfileSchema), userProfileController.update);
+router.get('/:id/history', userProfileController.getHistory);
+router.post('/:id/period/start', userProfileController.startPeriod);
 
 // Admin bulk access if needed
 router.get('/', adminAuth, async (req, res, next) => {

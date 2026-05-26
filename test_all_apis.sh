@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-API_URL="http://localhost:3001"
+API_URL=${API_URL:-"http://localhost:3001"}
 ADMIN_KEY="nitinisacoderandstudent"
 
 echo "-----------------------------------"

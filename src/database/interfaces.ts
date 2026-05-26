@@ -123,6 +123,10 @@ export interface CreateUserProfileInput {
   id?: string;
   profileCompleted?: boolean;
   cycleStartDate?: string;
+  cycleDay?: number;
+  cycleLength?: number;
+  nextPeriodDate?: string;
+  nextAppointment?: string;
 }
 // Doctor Interface
 export interface Doctor {
@@ -258,6 +262,8 @@ export interface DatabaseAdapter {
   createUserProfile(profile: CreateUserProfileInput): Promise<UserProfile>;
   getUserProfile(id: string): Promise<UserProfile>;
   updateUserProfile(id: string, updates: Partial<UserProfile>): Promise<UserProfile>;
+  saveUserProfileHistory(history: CreateUserProfileHistoryInput): Promise<UserProfileHistory>;
+  getUserProfileHistory(userId: string): Promise<UserProfileHistory[]>;
 
   // Appointment operations
   createAppointment(appointment: CreateAppointmentInput): Promise<Appointment>;
@@ -284,6 +290,24 @@ export interface DatabaseAdapter {
   verifyOtp(email: string, otp: string): Promise<boolean>;
   updatePassword(email: string, hashedPassword: string): Promise<void>;
   upsertUserRole(email: string, role: string): Promise<void>;
+
+  // Classes Management operations
+  createClassCategory(category: CreateClassCategoryInput): Promise<ClassCategory>;
+  getClassCategories(): Promise<ClassCategory[]>;
+  deleteClassCategory(id: string): Promise<boolean>;
+
+  createWellnessClass(cls: CreateWellnessClassInput): Promise<WellnessClass>;
+  getWellnessClasses(filters?: { type?: 'live' | 'recorded'; categoryId?: string; isFeatured?: boolean; isActive?: boolean }): Promise<WellnessClass[]>;
+  getWellnessClassById(id: string): Promise<WellnessClass | null>;
+  updateWellnessClass(id: string, updates: Partial<WellnessClass>): Promise<WellnessClass>;
+  deleteWellnessClass(id: string): Promise<boolean>;
+
+  getVideoPlacements(): Promise<VideoPlacement[]>;
+  updateVideoPlacement(id: string, updates: UpdateVideoPlacementInput): Promise<VideoPlacement>;
+
+  recordClassAttendance(attendance: RecordClassAttendanceInput): Promise<ClassAttendance>;
+  getClassAttendance(userId: string): Promise<ClassAttendance[]>;
+  getAllClassAttendance(): Promise<ClassAttendance[]>;
 }
 
 
@@ -331,3 +355,131 @@ export interface CreateDoctorEarningInput {
   description?: string;
   date: string;
 }
+
+export interface UserProfileHistory {
+  id: string;
+  userId: string;
+  date: string;
+  waterIntake: number;
+  mood?: string;
+  sleep: number;
+  cycleDay?: number;
+  symptoms: string[];
+  createdAt: string;
+}
+
+export interface CreateUserProfileHistoryInput {
+  userId: string;
+  date: string;
+  waterIntake: number;
+  mood?: string;
+  sleep?: number;
+  cycleDay?: number;
+  symptoms?: string[];
+}
+
+export interface ClassCategory {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
+export interface CreateClassCategoryInput {
+  name: string;
+  slug: string;
+}
+
+export interface WellnessClass {
+  id: string;
+  title: string;
+  description: string;
+  type: 'live' | 'recorded';
+  thumbnailUrl: string;
+  videoUrl: string;
+  youtubeVideoId: string;
+  googleMeetLink?: string;
+  scheduledAt?: string;
+  instructorName: string;
+  duration: number; // in minutes
+  categoryId: string;
+  isFeatured: boolean;
+  isActive: boolean;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWellnessClassInput {
+  title: string;
+  description: string;
+  type: 'live' | 'recorded';
+  thumbnailUrl: string;
+  videoUrl: string;
+  youtubeVideoId: string;
+  googleMeetLink?: string;
+  scheduledAt?: string;
+  instructorName: string;
+  duration: number;
+  categoryId: string;
+  isFeatured?: boolean;
+  isActive?: boolean;
+  tags?: string[];
+}
+
+export interface VideoPlacement {
+  id: string;
+  label: 'Link 1' | 'Link 2' | 'Link 3' | 'Link 4';
+  description: string;
+  classId?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  class?: WellnessClass;
+}
+
+export interface UpdateVideoPlacementInput {
+  classId?: string;
+  isActive?: boolean;
+}
+
+export interface ClassAttendance {
+  id: string;
+  userId: string;
+  classId: string;
+  joinedAt: string;
+  leftAt?: string;
+  watchDuration: number; // in seconds
+  completionPercentage: number; // 0 to 100
+  isCompleted: boolean;
+  interactionJoined: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecordClassAttendanceInput {
+  userId: string;
+  classId: string;
+  joinedAt?: string;
+  leftAt?: string;
+  watchDuration?: number;
+  completionPercentage?: number;
+  isCompleted?: boolean;
+  interactionJoined?: boolean;
+}
+
+export interface UserClassHistory {
+  totalClassesAttended: number;
+  completedWellnessSessions: number;
+  liveSessionsJoined: number;
+  lastAttendedClass?: WellnessClass;
+  attendanceHistory: Array<ClassAttendance & { class?: WellnessClass }>;
+  streaks: number;
+  categoryHistory: Record<string, number>;
+  wellnessProgressTimeline: Array<{
+    date: string;
+    completedCount: number;
+    totalDuration: number;
+  }>;
+}
+

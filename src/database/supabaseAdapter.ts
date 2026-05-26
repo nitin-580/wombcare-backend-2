@@ -2,17 +2,17 @@ import ws from 'ws';
 
 (global as any).WebSocket = ws;
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { 
-  DatabaseAdapter, 
-  User, 
-  CreateUserInput, 
-  RegistrationStats, 
-  PaginatedResult, 
-  Blog, 
-  CreateBlogInput, 
-  UpdateBlogInput, 
-  Career, 
-  CreateCareerInput, 
+import {
+  DatabaseAdapter,
+  User,
+  CreateUserInput,
+  RegistrationStats,
+  PaginatedResult,
+  Blog,
+  CreateBlogInput,
+  UpdateBlogInput,
+  Career,
+  CreateCareerInput,
   UpdateCareerInput,
   Doctor,
   CreateDoctorInput,
@@ -29,7 +29,17 @@ import {
   DoctorJoinRequest,
   CreateDoctorJoinRequestInput,
   DoctorEarning,
-  CreateDoctorEarningInput
+  CreateDoctorEarningInput,
+  UserProfileHistory,
+  CreateUserProfileHistoryInput,
+  ClassCategory,
+  CreateClassCategoryInput,
+  WellnessClass,
+  CreateWellnessClassInput,
+  VideoPlacement,
+  UpdateVideoPlacementInput,
+  ClassAttendance,
+  RecordClassAttendanceInput
 } from './interfaces';
 
 import { env } from '../config/env';
@@ -47,6 +57,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
   private readonly doctorJoinRequestsTableName = 'doctor_join_requests';
   private readonly otpTableName = 'password_reset_otps';
   private readonly doctorEarningsTableName = 'wombcare_doctor_earnings';
+  private readonly userProfileHistoryTableName = 'wombcare_user_profile_history';
+  private readonly classCategoriesTableName = 'wombcare_classes_categories';
+  private readonly classesTableName = 'wombcare_classes';
+  private readonly videoPlacementsTableName = 'wombcare_video_placements';
+  private readonly classAttendanceTableName = 'wombcare_class_attendance';
 
   constructor() {
     this.supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
@@ -145,14 +160,14 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
   async getRegistrationStats(): Promise<RegistrationStats> {
     const now = new Date();
-    
+
     // Setting up date boundaries
     const startOfToday = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-    
+
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday as start 
-    startOfWeek.setHours(0,0,0,0);
-    
+    startOfWeek.setHours(0, 0, 0, 0);
+
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
     // To prevent multiple roundtrips, usually handled by custom SQL, but we'll do separate counts in Supabase for simplicity
@@ -221,7 +236,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
     return data ? this.mapToBlog(data) : null;
   }
-  
+
   async getBlogBySlug(slug: string): Promise<Blog | null> {
     const { data, error } = await this.supabase
       .from(this.blogsTableName)
@@ -727,7 +742,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
         mood_date: profile.moodDate,
         water_intake_date: profile.waterIntakeDate,
         is_period_tracker_enabled: profile.isPeriodTrackerEnabled ?? true,
-        is_premium: profile.isPremium ?? false
+        is_premium: profile.isPremium ?? false,
+        cycle_day: profile.cycleDay,
+        cycle_length: profile.cycleLength,
+        next_period_date: profile.nextPeriodDate,
+        next_appointment: profile.nextAppointment
       })
       .select()
       .single();
@@ -784,7 +803,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (updates.waterIntakeDate !== undefined) dbUpdates.water_intake_date = updates.waterIntakeDate;
     if (updates.isPeriodTrackerEnabled !== undefined) dbUpdates.is_period_tracker_enabled = updates.isPeriodTrackerEnabled;
     if (updates.isPremium !== undefined) dbUpdates.is_premium = updates.isPremium;
-    
+
     dbUpdates.updated_at = new Date().toISOString();
 
     const { data, error } = await this.supabase
@@ -835,6 +854,56 @@ export class SupabaseAdapter implements DatabaseAdapter {
       isPremium: row.is_premium ?? false,
       createdAt: row.created_at,
       updatedAt: row.updated_at
+    };
+  }
+
+  async saveUserProfileHistory(history: CreateUserProfileHistoryInput): Promise<UserProfileHistory> {
+    const { data, error } = await this.supabase
+      .from(this.userProfileHistoryTableName)
+      .insert({
+        user_id: history.userId,
+        date: history.date,
+        water_intake: history.waterIntake,
+        mood: history.mood,
+        sleep: history.sleep ?? 0,
+        cycle_day: history.cycleDay,
+        symptoms: history.symptoms || []
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to save user profile history: ${error.message}`);
+    }
+
+    return this.mapToUserProfileHistory(data);
+  }
+
+  async getUserProfileHistory(userId: string): Promise<UserProfileHistory[]> {
+    const { data, error } = await this.supabase
+      .from(this.userProfileHistoryTableName)
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch user profile history: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapToUserProfileHistory(row));
+  }
+
+  private mapToUserProfileHistory(row: any): UserProfileHistory {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      date: row.date,
+      waterIntake: row.water_intake,
+      mood: row.mood,
+      sleep: row.sleep ?? 0,
+      cycleDay: row.cycle_day,
+      symptoms: Array.isArray(row.symptoms) ? row.symptoms : [],
+      createdAt: row.created_at
     };
   }
 
@@ -1123,5 +1192,303 @@ export class SupabaseAdapter implements DatabaseAdapter {
       .upsert({ email, role }, { onConflict: 'email' });
 
     if (error) throw new Error(`Failed to upsert user role: ${error.message}`);
+  }
+
+  // ==========================================
+  // MAP HELPERS FOR CLASSES MODULE
+  // ==========================================
+  private mapToClassCategory(row: any): ClassCategory {
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      createdAt: row.created_at,
+    };
+  }
+
+  private mapToWellnessClass(row: any): WellnessClass {
+    return {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      type: row.type,
+      thumbnailUrl: row.thumbnail_url,
+      videoUrl: row.video_url,
+      youtubeVideoId: row.youtube_video_id,
+      googleMeetLink: row.google_meet_link || undefined,
+      scheduledAt: row.scheduled_at || undefined,
+      instructorName: row.instructor_name,
+      duration: row.duration,
+      categoryId: row.category_id,
+      isFeatured: row.is_featured || false,
+      isActive: row.is_active !== false,
+      tags: Array.isArray(row.tags) ? row.tags : (typeof row.tags === 'string' ? JSON.parse(row.tags) : []),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapToVideoPlacement(row: any): VideoPlacement {
+    return {
+      id: row.id,
+      label: row.label,
+      description: row.description,
+      classId: row.class_id || undefined,
+      isActive: row.is_active !== false,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapToClassAttendance(row: any): ClassAttendance {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      classId: row.class_id,
+      joinedAt: row.joined_at,
+      leftAt: row.left_at || undefined,
+      watchDuration: row.watch_duration || 0,
+      completionPercentage: row.completion_percentage || 0,
+      isCompleted: row.is_completed || false,
+      interactionJoined: row.interaction_joined || false,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  // ==========================================
+  // CLASSES CATEGORIES
+  // ==========================================
+  async createClassCategory(category: CreateClassCategoryInput): Promise<ClassCategory> {
+    const { data, error } = await this.supabase
+      .from(this.classCategoriesTableName)
+      .insert({
+        name: category.name,
+        slug: category.slug,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create class category: ${error.message}`);
+    return this.mapToClassCategory(data);
+  }
+
+  async getClassCategories(): Promise<ClassCategory[]> {
+    const { data, error } = await this.supabase
+      .from(this.classCategoriesTableName)
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) throw new Error(`Failed to fetch class categories: ${error.message}`);
+    return (data || []).map(row => this.mapToClassCategory(row));
+  }
+
+  async deleteClassCategory(id: string): Promise<boolean> {
+    const { error } = await this.supabase
+      .from(this.classCategoriesTableName)
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`Failed to delete class category: ${error.message}`);
+    return true;
+  }
+
+  // ==========================================
+  // WELLNESS CLASSES
+  // ==========================================
+  async createWellnessClass(cls: CreateWellnessClassInput): Promise<WellnessClass> {
+    const { data, error } = await this.supabase
+      .from(this.classesTableName)
+      .insert({
+        title: cls.title,
+        description: cls.description,
+        type: cls.type,
+        thumbnail_url: cls.thumbnailUrl,
+        video_url: cls.videoUrl,
+        youtube_video_id: cls.youtubeVideoId,
+        google_meet_link: cls.googleMeetLink || null,
+        scheduled_at: cls.scheduledAt || null,
+        instructor_name: cls.instructorName,
+        duration: cls.duration,
+        category_id: cls.categoryId,
+        is_featured: cls.isFeatured || false,
+        is_active: cls.isActive !== false,
+        tags: Array.isArray(cls.tags) ? cls.tags : [],
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create wellness class: ${error.message}`);
+    return this.mapToWellnessClass(data);
+  }
+
+  async getWellnessClasses(filters?: { type?: 'live' | 'recorded'; categoryId?: string; isFeatured?: boolean; isActive?: boolean }): Promise<WellnessClass[]> {
+    let query = this.supabase.from(this.classesTableName).select('*');
+
+    if (filters) {
+      if (filters.type) query = query.eq('type', filters.type);
+      if (filters.categoryId) query = query.eq('category_id', filters.categoryId);
+      if (filters.isFeatured !== undefined) query = query.eq('is_featured', filters.isFeatured);
+      if (filters.isActive !== undefined) query = query.eq('is_active', filters.isActive);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to fetch wellness classes: ${error.message}`);
+    return (data || []).map(row => this.mapToWellnessClass(row));
+  }
+
+  async getWellnessClassById(id: string): Promise<WellnessClass | null> {
+    const { data, error } = await this.supabase
+      .from(this.classesTableName)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw new Error(`Failed to fetch wellness class by id: ${error.message}`);
+    if (!data) return null;
+    return this.mapToWellnessClass(data);
+  }
+
+  async updateWellnessClass(id: string, updates: Partial<WellnessClass>): Promise<WellnessClass> {
+    const dbUpdates: any = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.type !== undefined) dbUpdates.type = updates.type;
+    if (updates.thumbnailUrl !== undefined) dbUpdates.thumbnail_url = updates.thumbnailUrl;
+    if (updates.videoUrl !== undefined) dbUpdates.video_url = updates.videoUrl;
+    if (updates.youtubeVideoId !== undefined) dbUpdates.youtube_video_id = updates.youtubeVideoId;
+    if (updates.googleMeetLink !== undefined) dbUpdates.google_meet_link = updates.googleMeetLink || null;
+    if (updates.scheduledAt !== undefined) dbUpdates.scheduled_at = updates.scheduledAt || null;
+    if (updates.instructorName !== undefined) dbUpdates.instructor_name = updates.instructorName;
+    if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
+    if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
+    if (updates.isFeatured !== undefined) dbUpdates.is_featured = updates.isFeatured;
+    if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from(this.classesTableName)
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update wellness class: ${error.message}`);
+    return this.mapToWellnessClass(data);
+  }
+
+  async deleteWellnessClass(id: string): Promise<boolean> {
+    const { error } = await this.supabase
+      .from(this.classesTableName)
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`Failed to delete wellness class: ${error.message}`);
+    return true;
+  }
+
+  // ==========================================
+  // VIDEO PLACEMENTS
+  // ==========================================
+  async getVideoPlacements(): Promise<VideoPlacement[]> {
+    const { data, error } = await this.supabase
+      .from(this.videoPlacementsTableName)
+      .select('*')
+      .order('label', { ascending: true });
+
+    if (error) throw new Error(`Failed to fetch video placements: ${error.message}`);
+    return (data || []).map(row => this.mapToVideoPlacement(row));
+  }
+
+  async updateVideoPlacement(id: string, updates: UpdateVideoPlacementInput): Promise<VideoPlacement> {
+    const dbUpdates: any = {};
+    if (updates.classId !== undefined) dbUpdates.class_id = updates.classId || null;
+    if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from(this.videoPlacementsTableName)
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update video placement: ${error.message}`);
+    return this.mapToVideoPlacement(data);
+  }
+
+  // ==========================================
+  // CLASS ATTENDANCE
+  // ==========================================
+  async recordClassAttendance(attendance: RecordClassAttendanceInput): Promise<ClassAttendance> {
+    const { data: existing, error: checkError } = await this.supabase
+      .from(this.classAttendanceTableName)
+      .select('*')
+      .eq('user_id', attendance.userId)
+      .eq('class_id', attendance.classId)
+      .maybeSingle();
+
+    if (checkError) throw new Error(`Failed to check existing attendance: ${checkError.message}`);
+
+    const dbPayload: any = {
+      user_id: attendance.userId,
+      class_id: attendance.classId,
+    };
+
+    if (attendance.joinedAt !== undefined) dbPayload.joined_at = attendance.joinedAt;
+    if (attendance.leftAt !== undefined) dbPayload.left_at = attendance.leftAt;
+    if (attendance.watchDuration !== undefined) dbPayload.watch_duration = attendance.watchDuration;
+    if (attendance.completionPercentage !== undefined) dbPayload.completion_percentage = attendance.completionPercentage;
+    if (attendance.isCompleted !== undefined) dbPayload.is_completed = attendance.isCompleted;
+    if (attendance.interactionJoined !== undefined) dbPayload.interaction_joined = attendance.interactionJoined;
+
+    dbPayload.updated_at = new Date().toISOString();
+
+    let result;
+    if (existing) {
+      const { data, error } = await this.supabase
+        .from(this.classAttendanceTableName)
+        .update(dbPayload)
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw new Error(`Failed to update class attendance: ${error.message}`);
+      result = data;
+    } else {
+      dbPayload.joined_at = dbPayload.joined_at || new Date().toISOString();
+      const { data, error } = await this.supabase
+        .from(this.classAttendanceTableName)
+        .insert(dbPayload)
+        .select()
+        .single();
+      if (error) throw new Error(`Failed to insert class attendance: ${error.message}`);
+      result = data;
+    }
+
+    return this.mapToClassAttendance(result);
+  }
+
+  async getClassAttendance(userId: string): Promise<ClassAttendance[]> {
+    const { data, error } = await this.supabase
+      .from(this.classAttendanceTableName)
+      .select('*')
+      .eq('user_id', userId)
+      .order('joined_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to fetch class attendance: ${error.message}`);
+    return (data || []).map(row => this.mapToClassAttendance(row));
+  }
+
+  async getAllClassAttendance(): Promise<ClassAttendance[]> {
+    const { data, error } = await this.supabase
+      .from(this.classAttendanceTableName)
+      .select('*')
+      .order('joined_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to fetch all class attendance: ${error.message}`);
+    return (data || []).map(row => this.mapToClassAttendance(row));
   }
 }

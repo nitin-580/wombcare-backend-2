@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-API_URL="http://localhost:3000"
+API_URL="http://localhost:3001"
 DOCTOR_EMAIL="dr.dashboard_$(date +%s)@example.com"
 DOCTOR_PASSWORD="Password123!"
 
