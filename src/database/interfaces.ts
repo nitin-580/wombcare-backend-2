@@ -96,6 +96,8 @@ export interface UserProfile {
   cycleStartDate?: string;
   createdAt: string;
   updatedAt: string;
+  sleep: number;
+  journal?: string;
 }
 
 export interface CreateUserProfileInput {
@@ -119,6 +121,8 @@ export interface CreateUserProfileInput {
   wellnessScore?: number;
   wellnessGoal?: string;
   personalNotes?: string;
+  sleep?: number;
+  journal?: string;
   doctorNote?: string;
   id?: string;
   profileCompleted?: boolean;
@@ -192,12 +196,31 @@ export interface Patient {
   symptoms: string;
   country: string;
   referredBy: string; // Doctor ID
+  referredId?: string; // Referral ID
   createdAt: string;
   updatedAt: string;
 }
 
 export type CreatePatientInput = Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdatePatientInput = Partial<CreatePatientInput>;
+
+// Referral Interface
+export interface Referral {
+  id: string;
+  patientName: string;
+  mobile: string;
+  email: string;
+  problem?: string;
+  doctorId: string;
+  doctorReferralCode?: string;
+  referralStatus: 'pending' | 'contacted' | 'converted' | 'rejected' | 'inactive';
+  convertedPatientId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateReferralInput = Omit<Referral, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateReferralInput = Partial<CreateReferralInput>;
 
 // Enrollment Interface
 export interface Enrollment {
@@ -253,6 +276,19 @@ export interface DatabaseAdapter {
   getPatientsByDoctor(doctorId: string): Promise<Patient[]>;
   getPaginatedPatientsByDoctor(doctorId: string, page: number, limit: number): Promise<PaginatedResult<Patient>>;
 
+  // Referral operations
+  createReferral(referral: CreateReferralInput): Promise<Referral>;
+  getReferralById(id: string): Promise<Referral | null>;
+  getReferralsByDoctor(doctorId: string): Promise<Referral[]>;
+  getPaginatedReferrals(options: { 
+    page: number; 
+    limit: number; 
+    status?: string; 
+    doctorId?: string; 
+    search?: string; 
+  }): Promise<PaginatedResult<Referral>>;
+  updateReferral(id: string, referral: UpdateReferralInput): Promise<Referral>;
+
   // Enrollment operations
   createEnrollment(enrollment: CreateEnrollmentInput): Promise<Enrollment>;
   getPaginatedEnrollments(page: number, limit: number): Promise<PaginatedResult<Enrollment>>;
@@ -264,6 +300,9 @@ export interface DatabaseAdapter {
   updateUserProfile(id: string, updates: Partial<UserProfile>): Promise<UserProfile>;
   saveUserProfileHistory(history: CreateUserProfileHistoryInput): Promise<UserProfileHistory>;
   getUserProfileHistory(userId: string): Promise<UserProfileHistory[]>;
+  savePeriodHistory(history: CreatePeriodHistoryInput): Promise<PeriodHistory>;
+  getPeriodHistory(userId: string): Promise<PeriodHistory[]>;
+  updatePeriodHistory(id: string, updates: Partial<PeriodHistory>): Promise<PeriodHistory>;
 
   // Appointment operations
   createAppointment(appointment: CreateAppointmentInput): Promise<Appointment>;
@@ -366,6 +405,7 @@ export interface UserProfileHistory {
   cycleDay?: number;
   symptoms: string[];
   createdAt: string;
+  journal?: string;
 }
 
 export interface CreateUserProfileHistoryInput {
@@ -376,6 +416,26 @@ export interface CreateUserProfileHistoryInput {
   sleep?: number;
   cycleDay?: number;
   symptoms?: string[];
+  journal?: string;
+}
+
+export interface PeriodHistory {
+  id: string;
+  userId: string;
+  startDate: string;
+  endDate: string;
+  symptoms: string[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePeriodHistoryInput {
+  userId: string;
+  startDate: string;
+  endDate: string;
+  symptoms?: string[];
+  notes?: string;
 }
 
 export interface ClassCategory {

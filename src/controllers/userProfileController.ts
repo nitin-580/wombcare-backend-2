@@ -64,6 +64,8 @@ export const updateProfileSchema = z.object({
     waterIntakeDate: z.string().optional(),
     isPeriodTrackerEnabled: z.boolean().optional(),
     wellnessGoal: z.string().optional(),
+    sleep: z.number().optional(),
+    journal: z.string().optional(),
   }),
 });
 
@@ -120,10 +122,56 @@ export class UserProfileController {
 
   startPeriod = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profile = await this.userProfileService.startPeriod(req.params.id as string);
+      const profile = await this.userProfileService.startPeriod(
+        req.params.id as string,
+        req.body?.startDate as string
+      );
       res.status(200).json({
         success: true,
         data: profile
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  endPeriod = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profile = await this.userProfileService.endPeriod(
+        req.params.id as string,
+        req.body?.endDate as string
+      );
+      res.status(200).json({
+        success: true,
+        data: profile
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPeriodHistory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const history = await this.userProfileService.getPeriodHistory(req.params.id as string);
+      res.status(200).json({
+        success: true,
+        data: history
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updatePeriodHistoryRecord = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updated = await this.userProfileService.updatePeriodHistoryRecord(
+        req.params.id as string,
+        req.params.periodId as string,
+        req.body
+      );
+      res.status(200).json({
+        success: true,
+        data: updated
       });
     } catch (error) {
       next(error);

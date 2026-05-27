@@ -39,7 +39,12 @@ import {
   VideoPlacement,
   UpdateVideoPlacementInput,
   ClassAttendance,
-  RecordClassAttendanceInput
+  RecordClassAttendanceInput,
+  PeriodHistory,
+  CreatePeriodHistoryInput,
+  Referral,
+  CreateReferralInput,
+  UpdateReferralInput
 } from './interfaces';
 
 import { env } from '../config/env';
@@ -58,6 +63,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
   private readonly otpTableName = 'password_reset_otps';
   private readonly doctorEarningsTableName = 'wombcare_doctor_earnings';
   private readonly userProfileHistoryTableName = 'wombcare_user_profile_history';
+  private readonly periodHistoryTableName = 'wombcare_period_history';
   private readonly classCategoriesTableName = 'wombcare_classes_categories';
   private readonly classesTableName = 'wombcare_classes';
   private readonly videoPlacementsTableName = 'wombcare_video_placements';
@@ -548,6 +554,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
       symptoms: row.symptoms,
       country: row.country,
       referredBy: row.referred_by,
+      referredId: row.referred_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -564,6 +571,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (patient.symptoms) row.symptoms = patient.symptoms;
     if (patient.country) row.country = patient.country;
     if (patient.referredBy) row.referred_by = patient.referredBy;
+    if (patient.referredId) row.referred_id = patient.referredId;
     return row;
   }
 
@@ -630,6 +638,136 @@ export class SupabaseAdapter implements DatabaseAdapter {
       page,
       limit,
     };
+  }
+
+  // Referral operations mapping
+  private mapToReferral(row: any): Referral {
+    return {
+      id: row.id,
+      patientName: row.patient_name,
+      mobile: row.mobile,
+      email: row.email,
+      problem: row.problem,
+      doctorId: row.doctor_id,
+      doctorReferralCode: row.doctor_referral_code,
+      referralStatus: row.referral_status,
+      convertedPatientId: row.converted_patient_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapToReferralDbRow(referral: CreateReferralInput | UpdateReferralInput) {
+    const row: any = {};
+    if (referral.patientName) row.patient_name = referral.patientName;
+    if (referral.mobile) row.mobile = referral.mobile;
+    if (referral.email) row.email = referral.email;
+    if (referral.problem !== undefined) row.problem = referral.problem;
+    if (referral.doctorId) row.doctor_id = referral.doctorId;
+    if (referral.doctorReferralCode !== undefined) row.doctor_referral_code = referral.doctorReferralCode;
+    if (referral.referralStatus) row.referral_status = referral.referralStatus;
+    if (referral.convertedPatientId !== undefined) row.converted_patient_id = referral.convertedPatientId;
+    return row;
+  }
+
+  async createReferral(referral: CreateReferralInput): Promise<Referral> {
+    const { data, error } = await this.supabase
+      .from("referrals")
+      .insert(this.mapToReferralDbRow(referral))
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create referral: ${error.message}`);
+    }
+
+    return this.mapToReferral(data);
+  }
+
+  async getReferralById(id: string): Promise<Referral | null> {
+    const { data, error } = await this.supabase
+      .from("referrals")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to fetch referral: ${error.message}`);
+    }
+
+    return data ? this.mapToReferral(data) : null;
+  }
+
+  async getReferralsByDoctor(doctorId: string): Promise<Referral[]> {
+    const { data, error } = await this.supabase
+      .from("referrals")
+      .select("*")
+      .eq("doctor_id", doctorId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch referrals: ${error.message}`);
+    }
+
+    return data.map(this.mapToReferral);
+  }
+
+  async getPaginatedReferrals(options: { 
+    page: number; 
+    limit: number; 
+    status?: string; 
+    doctorId?: string; 
+    search?: string; 
+  }): Promise<PaginatedResult<Referral>> {
+    const from = (options.page - 1) * options.limit;
+    const to = from + options.limit - 1;
+
+    let query = this.supabase
+      .from("referrals")
+      .select("*", { count: 'exact' });
+
+    if (options.status) {
+      query = query.eq("referral_status", options.status);
+    }
+    if (options.doctorId) {
+      query = query.eq("doctor_id", options.doctorId);
+    }
+    if (options.search) {
+      query = query.ilike("patient_name", `%${options.search}%`);
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch paginated referrals: ${error.message}`);
+    }
+
+    return {
+      data: data.map(this.mapToReferral),
+      total: count || 0,
+      page: options.page,
+      limit: options.limit,
+    };
+  }
+
+  async updateReferral(id: string, referral: UpdateReferralInput): Promise<Referral> {
+    const updates = this.mapToReferralDbRow(referral);
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from("referrals")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update referral: ${error.message}`);
+    }
+
+    return this.mapToReferral(data);
   }
 
   // Enrollment operations
@@ -746,7 +884,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
         cycle_day: profile.cycleDay,
         cycle_length: profile.cycleLength,
         next_period_date: profile.nextPeriodDate,
-        next_appointment: profile.nextAppointment
+        next_appointment: profile.nextAppointment,
+        sleep: profile.sleep ?? 0,
+        journal: profile.journal
       })
       .select()
       .single();
@@ -803,6 +943,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (updates.waterIntakeDate !== undefined) dbUpdates.water_intake_date = updates.waterIntakeDate;
     if (updates.isPeriodTrackerEnabled !== undefined) dbUpdates.is_period_tracker_enabled = updates.isPeriodTrackerEnabled;
     if (updates.isPremium !== undefined) dbUpdates.is_premium = updates.isPremium;
+    if (updates.sleep !== undefined) dbUpdates.sleep = updates.sleep;
+    if (updates.journal !== undefined) dbUpdates.journal = updates.journal;
 
     dbUpdates.updated_at = new Date().toISOString();
 
@@ -853,7 +995,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
       isPeriodTrackerEnabled: row.is_period_tracker_enabled ?? true,
       isPremium: row.is_premium ?? false,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      sleep: row.sleep ?? 0,
+      journal: row.journal
     };
   }
 
@@ -867,7 +1011,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
         mood: history.mood,
         sleep: history.sleep ?? 0,
         cycle_day: history.cycleDay,
-        symptoms: history.symptoms || []
+        symptoms: history.symptoms || [],
+        journal: history.journal
       })
       .select()
       .single();
@@ -903,7 +1048,77 @@ export class SupabaseAdapter implements DatabaseAdapter {
       sleep: row.sleep ?? 0,
       cycleDay: row.cycle_day,
       symptoms: Array.isArray(row.symptoms) ? row.symptoms : [],
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      journal: row.journal
+    };
+  }
+
+  async savePeriodHistory(history: CreatePeriodHistoryInput): Promise<PeriodHistory> {
+    const { data, error } = await this.supabase
+      .from(this.periodHistoryTableName)
+      .insert({
+        user_id: history.userId,
+        start_date: history.startDate,
+        end_date: history.endDate,
+        symptoms: history.symptoms || [],
+        notes: history.notes || ""
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to save period history: ${error.message}`);
+    }
+
+    return this.mapToPeriodHistory(data);
+  }
+
+  async getPeriodHistory(userId: string): Promise<PeriodHistory[]> {
+    const { data, error } = await this.supabase
+      .from(this.periodHistoryTableName)
+      .select('*')
+      .eq('user_id', userId)
+      .order('start_date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch period history: ${error.message}`);
+    }
+
+    return (data || []).map(row => this.mapToPeriodHistory(row));
+  }
+
+  async updatePeriodHistory(id: string, updates: Partial<PeriodHistory>): Promise<PeriodHistory> {
+    const dbUpdates: any = {};
+    if (updates.startDate !== undefined) dbUpdates.start_date = updates.startDate;
+    if (updates.endDate !== undefined) dbUpdates.end_date = updates.endDate;
+    if (updates.symptoms !== undefined) dbUpdates.symptoms = updates.symptoms;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from(this.periodHistoryTableName)
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update period history: ${error.message}`);
+    }
+
+    return this.mapToPeriodHistory(data);
+  }
+
+  private mapToPeriodHistory(row: any): PeriodHistory {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      symptoms: Array.isArray(row.symptoms) ? row.symptoms : [],
+      notes: row.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
     };
   }
 

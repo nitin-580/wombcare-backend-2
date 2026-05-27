@@ -20,6 +20,9 @@ router.get('/:id', userProfileController.getById);
 router.patch('/:id', validate(updateProfileSchema), userProfileController.update);
 router.get('/:id/history', userProfileController.getHistory);
 router.post('/:id/period/start', userProfileController.startPeriod);
+router.post('/:id/period/end', userProfileController.endPeriod);
+router.get('/:id/period/history', userProfileController.getPeriodHistory);
+router.patch('/:id/period/history/:periodId', userProfileController.updatePeriodHistoryRecord);
 
 // Admin bulk access if needed
 router.get('/', adminAuth, async (req, res, next) => {
