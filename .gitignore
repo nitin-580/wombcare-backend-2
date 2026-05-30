@@ -53,4 +53,4 @@ temp/
 *.spec.js
 
 # Misc
-.cache/
+.cache/.DS_Store
