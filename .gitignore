@@ -54,3 +54,4 @@ temp/
 
 # Misc
 .cache/.DS_Store
+.env
