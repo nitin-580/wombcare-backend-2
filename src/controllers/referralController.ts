@@ -14,15 +14,15 @@ export class ReferralController {
       }
 
       const { patientName, mobile, email, problem } = req.body;
-      if (!patientName || !mobile || !email) {
-        res.status(400).json({ success: false, message: 'patientName, mobile, and email are required fields' });
+      if (!patientName || !mobile) {
+        res.status(400).json({ success: false, message: 'patientName and mobile are required fields' });
         return;
       }
 
       const referral = await this.referralService.createReferral({
         patientName,
         mobile,
-        email,
+        email: email || '',
         problem,
         doctorId
       });
@@ -124,7 +124,8 @@ export class ReferralController {
   convertReferral = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const result = await this.referralService.convertReferralToPatient(id as string);
+      const { email } = req.body;
+      const result = await this.referralService.convertReferralToPatient(id as string, email);
       res.status(200).json(result);
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });

@@ -46,7 +46,10 @@ import {
   CreateReferralInput,
   UpdateReferralInput,
   LiveChatMessage,
-  CreateLiveChatMessageInput
+  CreateLiveChatMessageInput,
+  Banner,
+  CreateBannerInput,
+  UpdateBannerInput
 } from './interfaces';
 
 import { env } from '../config/env';
@@ -71,6 +74,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
   private readonly videoPlacementsTableName = 'wombcare_video_placements';
   private readonly classAttendanceTableName = 'wombcare_class_attendance';
   private readonly liveChatsTableName = 'wombcare_live_chats';
+  private readonly bannersTableName = 'wombcare_banners';
 
 
   constructor() {
@@ -1774,6 +1778,122 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
     if (error) throw new Error(`Failed to fetch live chat messages: ${error.message}`);
     return (data || []).map(row => this.mapToLiveChatMessage(row));
+  }
+
+  // Banner operations mapping
+  private mapToBanner(row: any): Banner {
+    return {
+      id: row.id,
+      title: row.title,
+      imageUrl: row.image_url,
+      targetUrl: row.target_url || undefined,
+      position: row.position,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapToBannerDbRow(banner: CreateBannerInput | UpdateBannerInput) {
+    const row: any = {};
+    if (banner.title !== undefined) row.title = banner.title;
+    if (banner.imageUrl !== undefined) row.image_url = banner.imageUrl;
+    if (banner.targetUrl !== undefined) row.target_url = banner.targetUrl;
+    if (banner.position !== undefined) row.position = banner.position;
+    if (banner.isActive !== undefined) row.is_active = banner.isActive;
+    return row;
+  }
+
+  async createBanner(banner: CreateBannerInput): Promise<Banner> {
+    const { data, error } = await this.supabase
+      .from(this.bannersTableName)
+      .insert(this.mapToBannerDbRow(banner))
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create banner: ${error.message}`);
+    }
+
+    return this.mapToBanner(data);
+  }
+
+  async getBannerById(id: string): Promise<Banner | null> {
+    const { data, error } = await this.supabase
+      .from(this.bannersTableName)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to fetch banner by id: ${error.message}`);
+    }
+
+    return data ? this.mapToBanner(data) : null;
+  }
+
+  async getPaginatedBanners(page: number, limit: number): Promise<PaginatedResult<Banner>> {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await this.supabase
+      .from(this.bannersTableName)
+      .select('*', { count: 'exact' })
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch paginated banners: ${error.message}`);
+    }
+
+    return {
+      data: data.map(row => this.mapToBanner(row)),
+      total: count || 0,
+      page,
+      limit,
+    };
+  }
+
+  async getActiveBanners(): Promise<Banner[]> {
+    const { data, error } = await this.supabase
+      .from(this.bannersTableName)
+      .select('*')
+      .eq('is_active', true)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch active banners: ${error.message}`);
+    }
+
+    return data.map(row => this.mapToBanner(row));
+  }
+
+  async updateBanner(id: string, banner: UpdateBannerInput): Promise<Banner> {
+    const { data, error } = await this.supabase
+      .from(this.bannersTableName)
+      .update(this.mapToBannerDbRow(banner))
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update banner: ${error.message}`);
+    }
+
+    return this.mapToBanner(data);
+  }
+
+  async deleteBanner(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.bannersTableName)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete banner: ${error.message}`);
+    }
   }
 }
 

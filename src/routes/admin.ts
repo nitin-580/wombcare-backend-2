@@ -16,6 +16,10 @@ import { EnrollmentController } from '../controllers/enrollmentController';
 import { EnrollmentService } from '../services/enrollmentService';
 import { EnrollmentRepository } from '../repositories/enrollmentRepository';
 import { PatientRepository } from '../repositories/patientRepository';
+import { BannerController, createBannerSchema, updateBannerSchema } from '../controllers/bannerController';
+import { BannerService } from '../services/bannerService';
+import { BannerRepository } from '../repositories/bannerRepository';
+import { validate } from '../middleware/validate';
 import multer from 'multer';
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -45,6 +49,10 @@ const uploadController = new UploadController(storageService);
 const enrollmentService = new EnrollmentService(enrollmentRepository);
 const enrollmentController = new EnrollmentController(enrollmentService);
 
+const bannerRepository = new BannerRepository(dbAdapter);
+const bannerService = new BannerService(bannerRepository);
+const bannerController = new BannerController(bannerService, storageService);
+
 // Apply admin authentication middleware to all admin routes
 router.use(adminAuth);
 
@@ -72,5 +80,12 @@ router.delete('/careers/:id', careerController.deleteCareer);
 // Admin Enrollment management
 router.get('/enrollments', enrollmentController.getAll);
 router.get('/patients', adminController.getPatients);
+
+// Admin Banner management
+router.get('/banners', bannerController.getBanners);
+router.post('/banners', validate(createBannerSchema), bannerController.createBanner);
+router.post('/banners/upload', upload.single('image'), bannerController.uploadBannerImage);
+router.patch('/banners/:id', validate(updateBannerSchema), bannerController.updateBanner);
+router.delete('/banners/:id', bannerController.deleteBanner);
 
 export default router;

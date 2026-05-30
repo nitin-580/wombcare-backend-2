@@ -77,7 +77,7 @@ export class ReferralService {
     return this.referralRepo.update(id, { referralStatus: status });
   }
 
-  async convertReferralToPatient(referralId: string): Promise<{ success: boolean; message: string; referral: Referral }> {
+  async convertReferralToPatient(referralId: string, customEmail?: string): Promise<{ success: boolean; message: string; referral: Referral }> {
     // 1. Fetch referral
     const referral = await this.referralRepo.findById(referralId);
     if (!referral) {
@@ -88,8 +88,19 @@ export class ReferralService {
       throw new Error("Referral is already converted");
     }
 
+    const emailToUse = customEmail || referral.email;
+    if (!emailToUse) {
+      throw new Error("Email address is required to convert a referral to an active patient account.");
+    }
+
+    // Update referral's email in the database so that future queries return the updated email!
+    if (customEmail && customEmail !== referral.email) {
+      await this.referralRepo.update(referralId, { email: customEmail });
+      referral.email = customEmail;
+    }
+
     // 2. Check if a user with this email already exists
-    const existingUser = await this.doctorRepo.findByEmail(referral.email);
+    const existingUser = await this.doctorRepo.findByEmail(emailToUse);
     if (existingUser) {
       throw new Error("A user account with this email already exists");
     }
@@ -107,7 +118,7 @@ export class ReferralService {
     // 4. Create user account in users table
     const newUser = await this.doctorRepo.create({
       name: referral.patientName,
-      email: referral.email,
+      email: emailToUse,
       password: hashedPassword,
       phone: referral.mobile,
       referralCode: '',
@@ -122,7 +133,7 @@ export class ReferralService {
     // 6. Create patient record referencing referral.id and doctor_id
     const newPatient = await this.patientRepo.create({
       name: referral.patientName,
-      email: referral.email,
+      email: emailToUse,
       phone: referral.mobile,
       age: 0,
       weight: 0,
@@ -137,7 +148,7 @@ export class ReferralService {
     await this.profileRepo.create({
       id: newUser.id,
       name: referral.patientName,
-      email: referral.email,
+      email: emailToUse,
       profileCompleted: false,
     });
 
@@ -148,7 +159,7 @@ export class ReferralService {
     });
 
     // 9. Send onboarding credentials email
-    await sendReferralWelcomeMail(referral.email, referral.patientName, tempPassword).catch(err => {
+    await sendReferralWelcomeMail(emailToUse, referral.patientName, tempPassword).catch(err => {
       console.error("Failed to send referral onboarding email:", err);
     });
 

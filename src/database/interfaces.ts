@@ -239,6 +239,21 @@ export interface Enrollment {
 
 export type CreateEnrollmentInput = Omit<Enrollment, 'id' | 'createdAt'>;
 
+// Banner Interface
+export interface Banner {
+  id: string;
+  title: string;
+  imageUrl: string;
+  targetUrl?: string;
+  position: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateBannerInput = Omit<Banner, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateBannerInput = Partial<CreateBannerInput>;
+
 // Database Adapter Interface
 export interface DatabaseAdapter {
   createUser(user: CreateUserInput): Promise<User>;
@@ -353,6 +368,14 @@ export interface DatabaseAdapter {
   recordClassAttendance(attendance: RecordClassAttendanceInput): Promise<ClassAttendance>;
   getClassAttendance(userId: string): Promise<ClassAttendance[]>;
   getAllClassAttendance(): Promise<ClassAttendance[]>;
+
+  // Banner operations
+  createBanner(banner: CreateBannerInput): Promise<Banner>;
+  getBannerById(id: string): Promise<Banner | null>;
+  getPaginatedBanners(page: number, limit: number): Promise<PaginatedResult<Banner>>;
+  getActiveBanners(): Promise<Banner[]>;
+  updateBanner(id: string, banner: UpdateBannerInput): Promise<Banner>;
+  deleteBanner(id: string): Promise<void>;
 }
 
 
