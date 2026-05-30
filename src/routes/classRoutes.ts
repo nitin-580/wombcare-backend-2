@@ -12,8 +12,10 @@ import { ClassRepository } from '../repositories/classRepository';
 import { SupabaseAdapter } from '../database/supabaseAdapter';
 import { validate } from '../middleware/validate';
 import { adminAuth } from '../middleware/adminAuth';
+import { userOrDoctorAuth } from '../middleware/userOrDoctorAuth';
 
 const router = Router();
+
 
 // Dependency Injection
 const dbAdapter = new SupabaseAdapter();
@@ -58,4 +60,11 @@ router.post('/', adminAuth, validate(createClassSchema), classController.createC
 router.patch('/:id', adminAuth, validate(updateClassSchema), classController.updateClass);
 router.delete('/:id', adminAuth, classController.deleteClass);
 
+// ==========================================
+// LIVE CHAT ROUTES
+// ==========================================
+router.get('/:classId/chat', userOrDoctorAuth, classController.getChatMessages);
+router.post('/:classId/chat', userOrDoctorAuth, classController.sendChatMessage);
+
 export default router;
+

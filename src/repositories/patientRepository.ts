@@ -24,4 +24,8 @@ export class PatientRepository {
   async getPaginatedByDoctor(doctorId: string, page: number, limit: number): Promise<PaginatedResult<Patient>> {
     return this.dbAdapter.getPaginatedPatientsByDoctor(doctorId, page, limit);
   }
+
+  async getPaginated(page: number, limit: number): Promise<PaginatedResult<Patient>> {
+    return this.dbAdapter.getPaginatedPatients(page, limit);
+  }
 }

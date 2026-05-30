@@ -44,7 +44,9 @@ import {
   CreatePeriodHistoryInput,
   Referral,
   CreateReferralInput,
-  UpdateReferralInput
+  UpdateReferralInput,
+  LiveChatMessage,
+  CreateLiveChatMessageInput
 } from './interfaces';
 
 import { env } from '../config/env';
@@ -68,6 +70,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
   private readonly classesTableName = 'wombcare_classes';
   private readonly videoPlacementsTableName = 'wombcare_video_placements';
   private readonly classAttendanceTableName = 'wombcare_class_attendance';
+  private readonly liveChatsTableName = 'wombcare_live_chats';
+
 
   constructor() {
     this.supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
@@ -630,6 +634,28 @@ export class SupabaseAdapter implements DatabaseAdapter {
 
     if (error) {
       throw new Error(`Failed to fetch paginated patients for doctor: ${error.message}`);
+    }
+
+    return {
+      data: data.map(this.mapToPatient),
+      total: count || 0,
+      page,
+      limit,
+    };
+  }
+
+  async getPaginatedPatients(page: number, limit: number): Promise<PaginatedResult<Patient>> {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await this.supabase
+      .from('patients')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch paginated patients: ${error.message}`);
     }
 
     return {
@@ -1706,4 +1732,48 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (error) throw new Error(`Failed to fetch all class attendance: ${error.message}`);
     return (data || []).map(row => this.mapToClassAttendance(row));
   }
+
+  // ==========================================
+  // LIVE CHAT SYSTEM
+  // ==========================================
+  private mapToLiveChatMessage(row: any): LiveChatMessage {
+    return {
+      id: row.id,
+      classId: row.class_id,
+      userId: row.user_id,
+      senderName: row.sender_name,
+      senderRole: row.sender_role,
+      message: row.message,
+      createdAt: row.created_at,
+    };
+  }
+
+  async createLiveChatMessage(input: CreateLiveChatMessageInput): Promise<LiveChatMessage> {
+    const { data, error } = await this.supabase
+      .from(this.liveChatsTableName)
+      .insert({
+        class_id: input.classId,
+        user_id: input.userId,
+        sender_name: input.senderName,
+        sender_role: input.senderRole,
+        message: input.message,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to save live chat message: ${error.message}`);
+    return this.mapToLiveChatMessage(data);
+  }
+
+  async getLiveChatMessages(classId: string): Promise<LiveChatMessage[]> {
+    const { data, error } = await this.supabase
+      .from(this.liveChatsTableName)
+      .select('*')
+      .eq('class_id', classId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw new Error(`Failed to fetch live chat messages: ${error.message}`);
+    return (data || []).map(row => this.mapToLiveChatMessage(row));
+  }
 }
+

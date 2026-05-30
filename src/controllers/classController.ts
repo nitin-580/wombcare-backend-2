@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ClassService } from '../services/classService';
+import { SupabaseAdapter } from '../database/supabaseAdapter';
 import { z } from 'zod';
+
 
 export const createCategorySchema = z.object({
   body: z.object({
@@ -252,4 +254,72 @@ export class ClassController {
       next(error);
     }
   };
+
+  // ==========================================
+  // LIVE CHAT SYSTEM
+  // ==========================================
+  sendChatMessage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const classIdStr = req.params.classId as string;
+      const { message } = req.body;
+      const user = req.user; // populated by userOrDoctorAuth middleware
+
+      if (!user) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      if (!message || message.trim() === '') {
+        res.status(400).json({ success: false, message: 'Message content is required' });
+        return;
+      }
+
+      // Resolve sender name
+      let senderName = 'Anonymous';
+      const db = new SupabaseAdapter();
+      if (user.role === 'doctor') {
+        const doc = await db.getDoctorById(user.id);
+        senderName = doc ? doc.name : 'Doctor';
+      } else if (user.role === 'admin') {
+        senderName = 'Admin';
+      } else {
+        try {
+          const profile = await db.getUserProfile(user.id);
+          senderName = profile ? profile.name : 'User';
+        } catch {
+          senderName = 'User';
+        }
+      }
+
+      const chatMessage = await this.classService.createLiveChatMessage({
+        classId: classIdStr,
+        userId: user.id,
+        senderName,
+        senderRole: user.role as 'user' | 'doctor' | 'admin',
+        message: message.trim()
+      });
+
+      res.status(201).json({
+        success: true,
+        data: chatMessage
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getChatMessages = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const classIdStr = req.params.classId as string;
+      const messages = await this.classService.getLiveChatMessages(classIdStr);
+      res.status(200).json({
+        success: true,
+        data: messages
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+
+

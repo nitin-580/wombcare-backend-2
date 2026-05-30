@@ -10,6 +10,7 @@ import appointmentRoutes from './appointmentRoutes';
 import authRoutes from './authRoutes';
 import classRoutes from './classRoutes';
 import referralRoutes from './referralRoutes';
+import aiRoutes from './aiRoutes';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use('/enrollments', enrollmentRoutes);
 router.use('/profiles', userProfileRoutes);
 router.use('/appointments', appointmentRoutes);
 router.use('/classes', classRoutes);
+router.use('/ai', aiRoutes);
 router.use('/', referralRoutes);
 
 // Health check endpoint

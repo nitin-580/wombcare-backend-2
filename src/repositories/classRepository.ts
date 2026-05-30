@@ -68,4 +68,14 @@ export class ClassRepository {
   async getAllAttendance(): Promise<ClassAttendance[]> {
     return this.dbAdapter.getAllClassAttendance();
   }
+
+  // Live Chat Operations
+  async createLiveChatMessage(input: { classId: string; userId: string; senderName: string; senderRole: 'user' | 'doctor' | 'admin'; message: string }) {
+    return this.dbAdapter.createLiveChatMessage(input);
+  }
+
+  async getLiveChatMessages(classId: string) {
+    return this.dbAdapter.getLiveChatMessages(classId);
+  }
 }
+

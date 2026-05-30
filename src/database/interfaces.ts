@@ -275,6 +275,7 @@ export interface DatabaseAdapter {
   getPatientById(id: string): Promise<Patient | null>;
   getPatientsByDoctor(doctorId: string): Promise<Patient[]>;
   getPaginatedPatientsByDoctor(doctorId: string, page: number, limit: number): Promise<PaginatedResult<Patient>>;
+  getPaginatedPatients(page: number, limit: number): Promise<PaginatedResult<Patient>>;
 
   // Referral operations
   createReferral(referral: CreateReferralInput): Promise<Referral>;
@@ -303,6 +304,11 @@ export interface DatabaseAdapter {
   savePeriodHistory(history: CreatePeriodHistoryInput): Promise<PeriodHistory>;
   getPeriodHistory(userId: string): Promise<PeriodHistory[]>;
   updatePeriodHistory(id: string, updates: Partial<PeriodHistory>): Promise<PeriodHistory>;
+
+  // Live Chat operations
+  createLiveChatMessage(input: CreateLiveChatMessageInput): Promise<LiveChatMessage>;
+  getLiveChatMessages(classId: string): Promise<LiveChatMessage[]>;
+
 
   // Appointment operations
   createAppointment(appointment: CreateAppointmentInput): Promise<Appointment>;
@@ -542,4 +548,24 @@ export interface UserClassHistory {
     totalDuration: number;
   }>;
 }
+
+// Live Chat Interfaces
+export interface LiveChatMessage {
+  id: string;
+  classId: string;
+  userId: string;
+  senderName: string;
+  senderRole: 'user' | 'doctor' | 'admin';
+  message: string;
+  createdAt: string;
+}
+
+export interface CreateLiveChatMessageInput {
+  classId: string;
+  userId: string;
+  senderName: string;
+  senderRole: 'user' | 'doctor' | 'admin';
+  message: string;
+}
+
 

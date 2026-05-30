@@ -15,6 +15,7 @@ import { StorageService } from '../services/storageService';
 import { EnrollmentController } from '../controllers/enrollmentController';
 import { EnrollmentService } from '../services/enrollmentService';
 import { EnrollmentRepository } from '../repositories/enrollmentRepository';
+import { PatientRepository } from '../repositories/patientRepository';
 import multer from 'multer';
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -25,8 +26,9 @@ const router = Router();
 const dbAdapter = new SupabaseAdapter();
 const userRepository = new UserRepository(dbAdapter);
 const enrollmentRepository = new EnrollmentRepository(dbAdapter);
+const patientRepository = new PatientRepository(dbAdapter);
 
-const adminService = new AdminService(userRepository, enrollmentRepository);
+const adminService = new AdminService(userRepository, enrollmentRepository, patientRepository);
 const adminController = new AdminController(adminService);
 
 const blogRepository = new BlogRepository(dbAdapter);
@@ -69,5 +71,6 @@ router.delete('/careers/:id', careerController.deleteCareer);
 
 // Admin Enrollment management
 router.get('/enrollments', enrollmentController.getAll);
+router.get('/patients', adminController.getPatients);
 
 export default router;

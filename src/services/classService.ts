@@ -391,4 +391,14 @@ export class ClassService {
       interactionParticipation,
     };
   }
+
+  // Live Chat Operations
+  async createLiveChatMessage(input: { classId: string; userId: string; senderName: string; senderRole: 'user' | 'doctor' | 'admin'; message: string }) {
+    return this.classRepository.createLiveChatMessage(input);
+  }
+
+  async getLiveChatMessages(classId: string) {
+    return this.classRepository.getLiveChatMessages(classId);
+  }
 }
+

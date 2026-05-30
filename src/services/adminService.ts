@@ -1,10 +1,12 @@
 import { UserRepository } from '../repositories/userRepository';
 import { EnrollmentRepository } from '../repositories/enrollmentRepository';
+import { PatientRepository } from '../repositories/patientRepository';
 
 export class AdminService {
   constructor(
     private userRepository: UserRepository,
-    private enrollmentRepository: EnrollmentRepository
+    private enrollmentRepository: EnrollmentRepository,
+    private patientRepository: PatientRepository
   ) {}
 
   async getStats() {
@@ -21,5 +23,9 @@ export class AdminService {
 
   async getUsers(page: number, limit: number) {
     return this.userRepository.getPaginatedUsers(page, limit);
+  }
+
+  async getPatients(page: number, limit: number) {
+    return this.patientRepository.getPaginated(page, limit);
   }
 }

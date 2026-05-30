@@ -267,4 +267,15 @@ export class DoctorController {
       res.status(500).json({ success: false, message: error.message });
     }
   };
+
+  listDoctors = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const paginated = await this.doctorRepo.getPaginated(page, limit);
+      res.status(200).json({ success: true, data: paginated.data, total: paginated.total });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
 }
