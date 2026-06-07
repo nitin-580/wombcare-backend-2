@@ -1,35 +1,64 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import * as Sentry from "@sentry/node";
+
 import { env } from './config/env';
 import routes from './routes';
 import { errorHandler } from './middleware/errorHandler';
 
+
 const app = express();
 
-// Security Middlewares
+
+// Security
 app.use(helmet());
+
 app.use(cors({
   origin: env.CORS_ORIGIN,
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: [
+    'GET',
+    'POST',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+  ],
 }));
 
-// Body parsing Middleware
+
+// Body parsing
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended:true }));
+
 
 // API Routes
-app.use('/api', routes); // Main router mounts early-access and admin routes under /api
+app.use('/api', routes);
 
-// 404 Handler
-app.use((req, res) => {
+
+// TEST SENTRY ROUTE
+// remove after testing
+app.get("/debug-sentr", () => {
+  throw new Error(
+    "WombCare Backend Sentry Tet Error"
+  );
+});
+
+
+// 404 ALWAYS AFTER ROUTES
+app.use((req,res)=>{
   res.status(404).json({
-    success: false,
-    message: 'Not Found',
+    success:false,
+    message:"Not Found",
   });
 });
 
-// Centralized Error Handler
+
+// Sentry error handler
+Sentry.setupExpressErrorHandler(app);
+
+
+// Your custom error handler LAST
 app.use(errorHandler);
+
 
 export default app;

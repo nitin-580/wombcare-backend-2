@@ -691,7 +691,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
     const row: any = {};
     if (referral.patientName) row.patient_name = referral.patientName;
     if (referral.mobile) row.mobile = referral.mobile;
-    if (referral.email) row.email = referral.email;
+    if (referral.email !== undefined) row.email = referral.email;
     if (referral.problem !== undefined) row.problem = referral.problem;
     if (referral.doctorId) row.doctor_id = referral.doctorId;
     if (referral.doctorReferralCode !== undefined) row.doctor_referral_code = referral.doctorReferralCode;

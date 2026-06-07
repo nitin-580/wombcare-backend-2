@@ -25,6 +25,15 @@ curl -s -X POST "$API_URL/api/doctors/signup" \
     "credentials": "MBBS"
   }' > /dev/null
 
+echo "Setup: Promoting registered user to 'doctor' role..."
+curl -s -X POST "$API_URL/api/admin/users/role" \
+  -H "x-admin-api-key: $ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "'"$DOCTOR_EMAIL"'",
+    "role": "doctor"
+  }' > /dev/null
+
 echo "Setup: Logging in Doctor account..."
 LOGIN_RESP=$(curl -s -X POST "$API_URL/api/doctors/login" \
   -H "Content-Type: application/json" \
