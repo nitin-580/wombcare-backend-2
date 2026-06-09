@@ -12,6 +12,7 @@ import classRoutes from './classRoutes';
 import referralRoutes from './referralRoutes';
 import aiRoutes from './aiRoutes';
 import bannerRoutes from './bannerRoutes';
+import paymentRoutes from './paymentRoutes';
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.use('/appointments', appointmentRoutes);
 router.use('/classes', classRoutes);
 router.use('/ai', aiRoutes);
 router.use('/banners', bannerRoutes);
+router.use('/payment', paymentRoutes);
 router.use('/', referralRoutes);
 
 // Health check endpoint

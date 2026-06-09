@@ -35,15 +35,6 @@ app.use(express.urlencoded({ extended:true }));
 app.use('/api', routes);
 
 
-// TEST SENTRY ROUTE
-// remove after testing
-app.get("/debug-sentr", () => {
-  throw new Error(
-    "WombCare Backend Sentry Tet Error"
-  );
-});
-
-
 // 404 ALWAYS AFTER ROUTES
 app.use((req,res)=>{
   res.status(404).json({
