@@ -84,7 +84,7 @@ export class DoctorController {
       ]);
 
       const userRole = role || 'user';
-      const token = jwt.sign({ id: doctor.id, email: doctor.email, role: userRole }, env.JWT_SECRET, { expiresIn: "7d" });
+      const token = jwt.sign({ id: doctor.id, email: doctor.email, role: userRole }, env.JWT_SECRET, { expiresIn: "30d" });
 
       const { password: _, ...doctorResponse } = doctor as any;
       res.status(200).json({ 
