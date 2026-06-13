@@ -261,8 +261,8 @@ export class DoctorController {
         return;
       }
       const earnings = await this.earningsRepo.getByDoctorId(doctorId);
-      // Filter earnings to only show transferred ones
-      const transferredEarnings = earnings.filter(e => e.status === 'transferred');
+      // Filter earnings to only show transferred ones (processed in DB)
+      const transferredEarnings = earnings.filter(e => e.status === 'processed');
       const totalEarnings = transferredEarnings.reduce((acc, curr) => acc + curr.amount, 0);
       res.status(200).json({ success: true, earnings: transferredEarnings, totalEarnings });
     } catch (error: any) {
@@ -292,7 +292,7 @@ export class DoctorController {
         doctorId,
         amount: Number(amount),
         description: description || "Commission",
-        status: status || "transferred",
+        status: status || "processed",
         date: date || new Date().toISOString()
       });
       res.status(201).json({ success: true, message: "Earning added successfully", data: earning });
@@ -305,7 +305,7 @@ export class DoctorController {
     try {
       const { id } = req.params;
       const earnings = await this.earningsRepo.getByDoctorId(id as string);
-      const transferredEarnings = earnings.filter(e => e.status === 'transferred');
+      const transferredEarnings = earnings.filter(e => e.status === 'processed');
       const totalEarnings = transferredEarnings.reduce((acc, curr) => acc + curr.amount, 0);
       res.status(200).json({ success: true, earnings, totalEarnings });
     } catch (error: any) {

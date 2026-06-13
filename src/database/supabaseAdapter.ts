@@ -505,10 +505,31 @@ export class SupabaseAdapter implements DatabaseAdapter {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
+    // 1. Get emails of users with 'doctor' role
+    const { data: roleData, error: roleError } = await this.supabase
+      .from(this.userRolesTableName)
+      .select('email')
+      .eq('role', 'doctor');
+
+    if (roleError) {
+      throw new Error(`Failed to fetch doctor roles: ${roleError.message}`);
+    }
+
+    const emails = (roleData || []).map(r => r.email);
+    if (emails.length === 0) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+      };
+    }
+
+    // 2. Fetch paginated users who have those emails
     const { data, error, count } = await this.supabase
       .from(this.doctorsTableName)
       .select('*', { count: 'exact' })
-      .not('referral_code', 'is', null)
+      .in('email', emails)
       .order('created_at', { ascending: false })
       .range(from, to);
 
