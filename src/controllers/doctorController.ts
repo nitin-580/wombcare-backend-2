@@ -261,8 +261,10 @@ export class DoctorController {
         return;
       }
       const earnings = await this.earningsRepo.getByDoctorId(doctorId);
-      const totalEarnings = earnings.reduce((acc, curr) => acc + curr.amount, 0);
-      res.status(200).json({ success: true, earnings, totalEarnings });
+      // Filter earnings to only show transferred ones
+      const transferredEarnings = earnings.filter(e => e.status === 'transferred');
+      const totalEarnings = transferredEarnings.reduce((acc, curr) => acc + curr.amount, 0);
+      res.status(200).json({ success: true, earnings: transferredEarnings, totalEarnings });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -274,6 +276,54 @@ export class DoctorController {
       const limit = parseInt(req.query.limit as string) || 100;
       const paginated = await this.doctorRepo.getPaginated(page, limit);
       res.status(200).json({ success: true, data: paginated.data, total: paginated.total });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  adminAddEarning = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { doctorId, amount, description, status, date } = req.body;
+      if (!doctorId || amount === undefined) {
+        res.status(400).json({ success: false, message: "Doctor ID and Amount are required." });
+        return;
+      }
+      const earning = await this.earningsRepo.create({
+        doctorId,
+        amount: Number(amount),
+        description: description || "Commission",
+        status: status || "transferred",
+        date: date || new Date().toISOString()
+      });
+      res.status(201).json({ success: true, message: "Earning added successfully", data: earning });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  adminGetDoctorEarnings = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const earnings = await this.earningsRepo.getByDoctorId(id as string);
+      const transferredEarnings = earnings.filter(e => e.status === 'transferred');
+      const totalEarnings = transferredEarnings.reduce((acc, curr) => acc + curr.amount, 0);
+      res.status(200).json({ success: true, earnings, totalEarnings });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  adminUpdateDoctorProfile = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const updateData: UpdateDoctorInput = req.body;
+      const updatedDoctor = await this.doctorRepo.update(id as string, updateData);
+      if (!updatedDoctor) {
+        res.status(404).json({ success: false, message: "Doctor not found" });
+        return;
+      }
+      const { password: _, ...doctorResponse } = updatedDoctor as any;
+      res.status(200).json({ success: true, message: "Doctor updated successfully", doctor: doctorResponse });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

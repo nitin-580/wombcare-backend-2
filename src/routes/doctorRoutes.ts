@@ -38,5 +38,8 @@ router.get('/earnings', doctorAuth, doctorController.getDoctorEarnings);
 router.post('/join-request', doctorController.createJoinRequest);
 router.get('/admin/join-requests', adminAuth, doctorController.getJoinRequests);
 router.patch('/admin/join-requests', adminAuth, doctorController.updateJoinRequestStatus);
+router.post('/admin/earnings', adminAuth, doctorController.adminAddEarning);
+router.get('/admin/:id/earnings', adminAuth, doctorController.adminGetDoctorEarnings);
+router.patch('/admin/:id/profile', adminAuth, doctorController.adminUpdateDoctorProfile);
 
 export default router;

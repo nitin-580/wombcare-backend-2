@@ -409,7 +409,7 @@ export interface DoctorEarning {
   doctorId: string;
   appointmentId?: string;
   amount: number;
-  status: 'pending' | 'processed' | 'withdrawn';
+  status: 'pending' | 'processed' | 'withdrawn' | 'transferred';
   description?: string;
   date: string;
   createdAt: string;
@@ -419,7 +419,7 @@ export interface CreateDoctorEarningInput {
   doctorId: string;
   appointmentId?: string;
   amount: number;
-  status: 'pending' | 'processed';
+  status: 'pending' | 'processed' | 'transferred';
   description?: string;
   date: string;
 }

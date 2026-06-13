@@ -8,14 +8,33 @@ const router = Router();
 // Endpoint: Create Razorpay Order
 router.post('/order', async (req: any, res: any) => {
   try {
-    const { amount, name, email, mobile, planName } = req.body;
+    const { amount, name, email, mobile, planName, currency } = req.body;
     if (!amount || !email) {
       return res.status(400).json({ success: false, message: 'Amount and email are required.' });
     }
 
     const baseAmount = Number(amount);
-    const gst = baseAmount * 0.18;
-    const totalAmount = Math.round((baseAmount + gst) * 100); // Amount in paise
+    const isUSD = currency === 'USD';
+    
+    let usdToInrRate = 84; // Fallback rate
+    if (isUSD) {
+      try {
+        const rateResponse = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (rateResponse.ok) {
+          const rateData = await rateResponse.json();
+          if (rateData.result === 'success' && rateData.rates && rateData.rates.INR) {
+            usdToInrRate = Number(rateData.rates.INR);
+            logger.info(`Fetched real-time exchange rate for USD to INR: ${usdToInrRate}`);
+          }
+        }
+      } catch (rateErr) {
+        logger.error('Error fetching exchange rate, using fallback rate of 84:', rateErr);
+      }
+    }
+    
+    const baseAmountInINR = isUSD ? baseAmount * usdToInrRate : baseAmount;
+    const gst = baseAmountInINR * 0.18;
+    const totalAmount = Math.round((baseAmountInINR + gst) * 100); // Amount in paise
 
     const razorpayKey = process.env.RAZORPAY_TEST_API_KEY;
     const razorpaySecret = process.env.RAZORPAY_TEST_KEY_SECRET;
@@ -27,7 +46,7 @@ router.post('/order', async (req: any, res: any) => {
 
     const authHeader = 'Basic ' + Buffer.from(`${razorpayKey}:${razorpaySecret}`).toString('base64');
     
-    // Call Razorpay API using node fetch
+    // Call Razorpay API using node fetch - always use INR for the gateway
     const response = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
       headers: {
@@ -51,9 +70,10 @@ router.post('/order', async (req: any, res: any) => {
       success: true,
       order: data,
       razorpayKey,
-      baseAmount,
+      baseAmount: baseAmountInINR,
       gstAmount: Number(gst.toFixed(2)),
-      totalAmount: Number((baseAmount + gst).toFixed(2))
+      totalAmount: Number((baseAmountInINR + gst).toFixed(2)),
+      currency: 'INR'
     });
   } catch (error: any) {
     logger.error('Error in create order endpoint:', error);
@@ -72,7 +92,9 @@ router.post('/verify', async (req: any, res: any) => {
       name,
       mobile,
       planName,
-      amount
+      amount,
+      currency,
+      usdAmount
     } = req.body;
 
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature || !email) {
@@ -119,7 +141,11 @@ router.post('/verify', async (req: any, res: any) => {
             <div style="background-color: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #4b5563;"><strong>Payment ID:</strong> ${razorpay_payment_id}</p>
               <p style="margin: 0 0 8px 0; font-size: 14px; color: #4b5563;"><strong>Order ID:</strong> ${razorpay_order_id}</p>
-              <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>Total Amount Paid (incl. 18% GST):</strong> ₹${amount}</p>
+              <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>Total Amount Paid (incl. 18% GST):</strong> ${
+                currency === 'USD' && usdAmount
+                  ? `$${Number(usdAmount).toFixed(2)} USD (Paid as ₹${Number(amount).toFixed(2)})`
+                  : `₹${Number(amount).toFixed(2)}`
+              }</p>
             </div>
 
             <div style="background: #a855f7; padding: 20px; border-radius: 12px; color: #ffffff; margin-bottom: 24px; text-align: center;">

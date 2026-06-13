@@ -508,6 +508,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
     const { data, error, count } = await this.supabase
       .from(this.doctorsTableName)
       .select('*', { count: 'exact' })
+      .not('referral_code', 'is', null)
       .order('created_at', { ascending: false })
       .range(from, to);
 
