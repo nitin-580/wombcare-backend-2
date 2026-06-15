@@ -21,6 +21,9 @@ import { BannerService } from '../services/bannerService';
 import { BannerRepository } from '../repositories/bannerRepository';
 import { validate } from '../middleware/validate';
 import multer from 'multer';
+import { DietPlanController, createDietPlanSchema } from '../controllers/dietPlanController';
+import { DietPlanService } from '../services/dietPlanService';
+import { DietPlanRepository } from '../repositories/dietPlanRepository';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -52,6 +55,10 @@ const enrollmentController = new EnrollmentController(enrollmentService);
 const bannerRepository = new BannerRepository(dbAdapter);
 const bannerService = new BannerService(bannerRepository);
 const bannerController = new BannerController(bannerService, storageService);
+
+const dietPlanRepository = new DietPlanRepository(dbAdapter);
+const dietPlanService = new DietPlanService(dietPlanRepository);
+const dietPlanController = new DietPlanController(dietPlanService, storageService);
 
 // Apply admin authentication middleware to all admin routes
 router.use(adminAuth);
@@ -87,5 +94,12 @@ router.post('/banners', validate(createBannerSchema), bannerController.createBan
 router.post('/banners/upload', upload.single('image'), bannerController.uploadBannerImage);
 router.patch('/banners/:id', validate(updateBannerSchema), bannerController.updateBanner);
 router.delete('/banners/:id', bannerController.deleteBanner);
+
+// Admin Diet Plan management
+router.get('/diet-plans', dietPlanController.listPlansAdmin);
+router.post('/diet-plans', validate(createDietPlanSchema), dietPlanController.createPlanAdmin);
+router.patch('/diet-plans/:id', dietPlanController.updatePlanAdmin);
+router.delete('/diet-plans/:id', dietPlanController.deletePlanAdmin);
+router.post('/diet-plans/upload-pdf', upload.single('pdf'), dietPlanController.uploadPdfAdmin);
 
 export default router;

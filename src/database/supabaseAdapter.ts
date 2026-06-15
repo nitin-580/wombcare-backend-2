@@ -49,7 +49,12 @@ import {
   CreateLiveChatMessageInput,
   Banner,
   CreateBannerInput,
-  UpdateBannerInput
+  UpdateBannerInput,
+  Food,
+  DietPlan,
+  DayDietPlan,
+  MealLog,
+  WeeklyNutritionReport
 } from './interfaces';
 
 import { env } from '../config/env';
@@ -75,6 +80,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
   private readonly classAttendanceTableName = 'wombcare_class_attendance';
   private readonly liveChatsTableName = 'wombcare_live_chats';
   private readonly bannersTableName = 'wombcare_banners';
+  private readonly foodsTableName = 'wombcare_foods';
+  private readonly dietPlansTableName = 'wombcare_diet_plans';
+  private readonly mealLogsTableName = 'wombcare_meal_logs';
 
 
   constructor() {
@@ -214,8 +222,28 @@ export class SupabaseAdapter implements DatabaseAdapter {
       throw new Error(`Failed to fetch paginated users: ${error.message}`);
     }
 
+    // Fetch all user roles
+    const { data: rolesData } = await this.supabase
+      .from(this.userRolesTableName)
+      .select('email, role');
+
+    const roleMap = new Map<string, string>();
+    if (rolesData) {
+      for (const r of rolesData) {
+        if (r.email && r.role) {
+          roleMap.set(r.email.toLowerCase(), r.role);
+        }
+      }
+    }
+
+    const users = (data || []).map(row => {
+      const u = this.mapToUser(row);
+      const role = roleMap.get(u.email.toLowerCase()) || 'user';
+      return { ...u, role };
+    });
+
     return {
-      data: data.map(this.mapToUser),
+      data: users,
       total: count || 0,
       page,
       limit,
@@ -1916,6 +1944,260 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (error) {
       throw new Error(`Failed to delete banner: ${error.message}`);
     }
+  }
+
+  // Nutrition & Diet Management Mappers & Methods
+  private mapToFood(row: any): Food {
+    return {
+      id: row.id,
+      name: row.name,
+      calories: row.calories,
+      protein: Number(row.protein || 0),
+      carbs: Number(row.carbs || 0),
+      fats: Number(row.fats || 0),
+      category: row.category,
+      createdAt: row.created_at
+    };
+  }
+
+  private mapToDietPlan(row: any): DietPlan {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      description: row.description,
+      patientAge: row.patient_age,
+      patientHeight: row.patient_height,
+      patientWeight: row.patient_weight,
+      patientGoal: row.patient_goal,
+      patientDiet: row.patient_diet,
+      dietData: (row.diet_data || []) as DayDietPlan[],
+      foodsToAvoid: row.foods_to_avoid || [],
+      dailyTargets: row.daily_targets || [],
+      pdfUrl: row.pdf_url,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  private mapToMealLog(row: any): MealLog {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      dietPlanId: row.diet_plan_id,
+      date: row.date,
+      day: row.day,
+      mealIndex: row.meal_index,
+      mealName: row.meal_name,
+      status: row.status as 'completed' | 'delayed' | 'skipped',
+      completionTime: row.completion_time,
+      dailyCompletionPercentage: Number(row.daily_completion_percentage || 0),
+      createdAt: row.created_at
+    };
+  }
+
+  async createFood(food: Omit<Food, 'id' | 'createdAt'>): Promise<Food> {
+    const { data, error } = await this.supabase
+      .from(this.foodsTableName)
+      .insert({
+        name: food.name,
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fats: food.fats,
+        category: food.category
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create food: ${error.message}`);
+    }
+    return this.mapToFood(data);
+  }
+
+  async searchFoods(query: string): Promise<Food[]> {
+    const { data, error } = await this.supabase
+      .from(this.foodsTableName)
+      .select('*')
+      .ilike('name', `%${query}%`)
+      .order('name', { ascending: true })
+      .limit(20);
+
+    if (error) {
+      throw new Error(`Failed to search foods: ${error.message}`);
+    }
+    return (data || []).map(row => this.mapToFood(row));
+  }
+
+  async createDietPlan(plan: Omit<DietPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<DietPlan> {
+    const { data, error } = await this.supabase
+      .from(this.dietPlansTableName)
+      .insert({
+        user_id: plan.userId,
+        name: plan.name,
+        description: plan.description,
+        patient_age: plan.patientAge,
+        patient_height: plan.patientHeight,
+        patient_weight: plan.patientWeight,
+        patient_goal: plan.patientGoal,
+        patient_diet: plan.patientDiet,
+        diet_data: plan.dietData,
+        foods_to_avoid: plan.foodsToAvoid,
+        daily_targets: plan.dailyTargets,
+        pdf_url: plan.pdfUrl
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create diet plan: ${error.message}`);
+    }
+    return this.mapToDietPlan(data);
+  }
+
+  async getDietPlanByUserId(userId: string): Promise<DietPlan | null> {
+    const { data, error } = await this.supabase
+      .from(this.dietPlansTableName)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      throw new Error(`Failed to fetch diet plan by user ID: ${error.message}`);
+    }
+    return data && data.length > 0 ? this.mapToDietPlan(data[0]) : null;
+  }
+
+  async getDietPlanById(id: string): Promise<DietPlan | null> {
+    const { data, error } = await this.supabase
+      .from(this.dietPlansTableName)
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw new Error(`Failed to fetch diet plan by ID: ${error.message}`);
+    }
+    return data ? this.mapToDietPlan(data) : null;
+  }
+
+  async getPaginatedDietPlans(page: number, limit: number): Promise<PaginatedResult<DietPlan>> {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await this.supabase
+      .from(this.dietPlansTableName)
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(`Failed to fetch paginated diet plans: ${error.message}`);
+    }
+
+    return {
+      data: (data || []).map(row => this.mapToDietPlan(row)),
+      total: count || 0,
+      page,
+      limit
+    };
+  }
+
+  async updateDietPlan(id: string, updates: Partial<DietPlan>): Promise<DietPlan> {
+    const dbUpdates: any = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.patientAge !== undefined) dbUpdates.patient_age = updates.patientAge;
+    if (updates.patientHeight !== undefined) dbUpdates.patient_height = updates.patientHeight;
+    if (updates.patientWeight !== undefined) dbUpdates.patient_weight = updates.patientWeight;
+    if (updates.patientGoal !== undefined) dbUpdates.patient_goal = updates.patientGoal;
+    if (updates.patientDiet !== undefined) dbUpdates.patient_diet = updates.patientDiet;
+    if (updates.dietData !== undefined) dbUpdates.diet_data = updates.dietData;
+    if (updates.foodsToAvoid !== undefined) dbUpdates.foods_to_avoid = updates.foodsToAvoid;
+    if (updates.dailyTargets !== undefined) dbUpdates.daily_targets = updates.dailyTargets;
+    if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
+    dbUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from(this.dietPlansTableName)
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update diet plan: ${error.message}`);
+    }
+    return this.mapToDietPlan(data);
+  }
+
+  async deleteDietPlan(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.dietPlansTableName)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error(`Failed to delete diet plan: ${error.message}`);
+    }
+  }
+
+  async trackMeal(log: Omit<MealLog, 'id' | 'createdAt'>): Promise<MealLog> {
+    const { data, error } = await this.supabase
+      .from(this.mealLogsTableName)
+      .upsert({
+        user_id: log.userId,
+        diet_plan_id: log.dietPlanId,
+        date: log.date,
+        day: log.day,
+        meal_index: log.mealIndex,
+        meal_name: log.mealName,
+        status: log.status,
+        completion_time: log.completionTime,
+        daily_completion_percentage: log.dailyCompletionPercentage
+      }, {
+        onConflict: 'user_id,date,day,meal_index'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to track meal: ${error.message}`);
+    }
+    return this.mapToMealLog(data);
+  }
+
+  async getMealLogs(userId: string, startDate: string, endDate: string): Promise<MealLog[]> {
+    const { data, error } = await this.supabase
+      .from(this.mealLogsTableName)
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+      .order('meal_index', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch meal logs: ${error.message}`);
+    }
+    return (data || []).map(row => this.mapToMealLog(row));
+  }
+
+  async getMealLogsByDate(userId: string, date: string): Promise<MealLog[]> {
+    const { data, error } = await this.supabase
+      .from(this.mealLogsTableName)
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .order('meal_index', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch meal logs by date: ${error.message}`);
+    }
+    return (data || []).map(row => this.mapToMealLog(row));
   }
 }
 

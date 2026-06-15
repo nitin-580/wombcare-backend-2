@@ -29,6 +29,7 @@ export interface User {
   country: string;
   source: string;
   createdAt: string;
+  role?: string;
 }
 
 export type CreateUserInput = Omit<User, 'id' | 'createdAt'>;
@@ -376,6 +377,19 @@ export interface DatabaseAdapter {
   getActiveBanners(): Promise<Banner[]>;
   updateBanner(id: string, banner: UpdateBannerInput): Promise<Banner>;
   deleteBanner(id: string): Promise<void>;
+
+  // Nutrition & Diet operations
+  createFood(food: Omit<Food, 'id' | 'createdAt'>): Promise<Food>;
+  searchFoods(query: string): Promise<Food[]>;
+  createDietPlan(plan: Omit<DietPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<DietPlan>;
+  getDietPlanByUserId(userId: string): Promise<DietPlan | null>;
+  getDietPlanById(id: string): Promise<DietPlan | null>;
+  getPaginatedDietPlans(page: number, limit: number): Promise<PaginatedResult<DietPlan>>;
+  updateDietPlan(id: string, updates: Partial<DietPlan>): Promise<DietPlan>;
+  deleteDietPlan(id: string): Promise<void>;
+  trackMeal(log: Omit<MealLog, 'id' | 'createdAt'>): Promise<MealLog>;
+  getMealLogs(userId: string, startDate: string, endDate: string): Promise<MealLog[]>;
+  getMealLogsByDate(userId: string, date: string): Promise<MealLog[]>;
 }
 
 
@@ -590,5 +604,75 @@ export interface CreateLiveChatMessageInput {
   senderRole: 'user' | 'doctor' | 'admin';
   message: string;
 }
+
+// Nutrition & Diet Management Interfaces
+export interface Food {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  category: string;
+  createdAt?: string;
+}
+
+export interface DayDietPlan {
+  day: number; // 1 to 7
+  meals: Array<{
+    name: string; // e.g. 'Breakfast', 'Snack'
+    time: string; // e.g. '08:30 AM'
+    foodItems: Array<{
+      name: string;
+      quantity: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+    }>;
+    instructions?: string;
+  }>;
+}
+
+export interface DietPlan {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  patientAge?: string;
+  patientHeight?: string;
+  patientWeight?: string;
+  patientGoal?: string;
+  patientDiet?: string;
+  dietData: DayDietPlan[];
+  foodsToAvoid: string[];
+  dailyTargets: Array<{ name: string; target: string }>;
+  pdfUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MealLog {
+  id: string;
+  userId: string;
+  dietPlanId: string;
+  date: string; // YYYY-MM-DD
+  day: number; // 1 to 7
+  mealIndex: number; // index of meal in DayDietPlan.meals
+  mealName: string;
+  status: 'completed' | 'delayed' | 'skipped';
+  completionTime?: string;
+  dailyCompletionPercentage: number;
+  createdAt: string;
+}
+
+export interface WeeklyNutritionReport {
+  totalMealsCompleted: number;
+  mealsEatenOnTime: number;
+  skippedMeals: number;
+  consistencyPercentage: number;
+  overallDietAdherence: number;
+}
+
 
 

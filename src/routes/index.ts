@@ -13,6 +13,7 @@ import referralRoutes from './referralRoutes';
 import aiRoutes from './aiRoutes';
 import bannerRoutes from './bannerRoutes';
 import paymentRoutes from './paymentRoutes';
+import dietPlanRoutes from './dietPlanRoutes';
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use('/classes', classRoutes);
 router.use('/ai', aiRoutes);
 router.use('/banners', bannerRoutes);
 router.use('/payment', paymentRoutes);
+router.use('/diet-plans', dietPlanRoutes);
 router.use('/', referralRoutes);
 
 // Health check endpoint
