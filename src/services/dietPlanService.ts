@@ -46,7 +46,7 @@ export class DietPlanService {
     day: number;
     mealIndex: number;
     mealName: string;
-    status: 'completed' | 'delayed' | 'skipped';
+    status: 'completed' | 'delayed' | 'skipped' | 'untracked';
     completionTime?: string;
   }): Promise<MealLog> {
     const activePlan = await this.dietPlanRepository.getDietPlanByUserId(log.userId);
@@ -71,6 +71,39 @@ export class DietPlanService {
     }
 
     const dailyCompletionPercentage = totalPlannedMeals > 0 ? Math.round((completedCount / totalPlannedMeals) * 100) : 0;
+
+    if (log.status === 'untracked') {
+      await this.dietPlanRepository.deleteMealLog(log.userId, log.date, log.day, log.mealIndex);
+
+      // Update other logs for the same day with the new percentage
+      for (const other of otherLogs) {
+        await this.dietPlanRepository.trackMeal({
+          userId: other.userId,
+          dietPlanId: other.dietPlanId,
+          date: other.date,
+          day: other.day,
+          mealIndex: other.mealIndex,
+          mealName: other.mealName,
+          status: other.status,
+          completionTime: other.completionTime,
+          dailyCompletionPercentage
+        });
+      }
+
+      logger.info(`Removed tracked meal for user ${log.userId} on ${log.date}. Daily Completion: ${dailyCompletionPercentage}%`);
+      return {
+        id: '',
+        userId: log.userId,
+        dietPlanId: activePlan.id,
+        date: log.date,
+        day: log.day,
+        mealIndex: log.mealIndex,
+        mealName: log.mealName,
+        status: 'untracked' as any,
+        dailyCompletionPercentage,
+        createdAt: new Date().toISOString()
+      };
+    }
 
     // Track/Upsert current meal
     const savedLog = await this.dietPlanRepository.trackMeal({

@@ -390,6 +390,7 @@ export interface DatabaseAdapter {
   trackMeal(log: Omit<MealLog, 'id' | 'createdAt'>): Promise<MealLog>;
   getMealLogs(userId: string, startDate: string, endDate: string): Promise<MealLog[]>;
   getMealLogsByDate(userId: string, date: string): Promise<MealLog[]>;
+  deleteMealLog(userId: string, date: string, day: number, mealIndex: number): Promise<void>;
 }
 
 

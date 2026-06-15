@@ -147,6 +147,18 @@ curl -s -X POST "$API_URL/api/diet-plans/user/$USER_ID/track" \
     "completionTime": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
   }' | jq .
 
+# 6.5 Track Meal (untracked - undo/change log)
+echo -e "\n\033[1;36m[6.5] User: Reverting Meal tracking status (Lunch) on $TODAY...\033[0m"
+curl -s -X POST "$API_URL/api/diet-plans/user/$USER_ID/track" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "'$TODAY'",
+    "day": 1,
+    "mealIndex": 1,
+    "mealName": "Lunch",
+    "status": "untracked"
+  }' | jq .
+
 # 7. Get Weekly Report
 echo -e "\n\033[1;36m[7] User: Fetching Weekly Report...\033[0m"
 curl -s -X GET "$API_URL/api/diet-plans/user/$USER_ID/reports" | jq .

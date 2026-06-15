@@ -2207,5 +2207,19 @@ export class SupabaseAdapter implements DatabaseAdapter {
     }
     return (data || []).map(row => this.mapToMealLog(row));
   }
+
+  async deleteMealLog(userId: string, date: string, day: number, mealIndex: number): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.mealLogsTableName)
+      .delete()
+      .eq('user_id', userId)
+      .eq('date', date)
+      .eq('day', day)
+      .eq('meal_index', mealIndex);
+
+    if (error) {
+      throw new Error(`Failed to delete meal log: ${error.message}`);
+    }
+  }
 }
 

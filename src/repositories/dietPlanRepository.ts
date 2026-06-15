@@ -46,4 +46,8 @@ export class DietPlanRepository {
   async getMealLogsByDate(userId: string, date: string): Promise<MealLog[]> {
     return this.dbAdapter.getMealLogsByDate(userId, date);
   }
+
+  async deleteMealLog(userId: string, date: string, day: number, mealIndex: number): Promise<void> {
+    return this.dbAdapter.deleteMealLog(userId, date, day, mealIndex);
+  }
 }

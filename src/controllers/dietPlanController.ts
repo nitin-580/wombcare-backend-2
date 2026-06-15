@@ -9,7 +9,7 @@ export const trackMealSchema = z.object({
     day: z.number().int().min(1).max(7),
     mealIndex: z.number().int().min(0),
     mealName: z.string().min(1),
-    status: z.enum(['completed', 'delayed', 'skipped']),
+    status: z.enum(['completed', 'delayed', 'skipped', 'untracked']),
     completionTime: z.string().optional(),
   }),
 });
@@ -189,11 +189,56 @@ export class DietPlanController {
   updatePlanAdmin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id as string;
-      const plan = await this.dietPlanService.updateDietPlan(id, req.body);
+      
+      // Fetch the existing plan to merge fields
+      const existingPlan = await this.dietPlanService.getDietPlanById(id);
+      if (!existingPlan) {
+        res.status(404).json({
+          success: false,
+          message: `Diet plan with ID ${id} not found`
+        });
+        return;
+      }
+
+      // Identify target user IDs
+      const { userIds, ...rest } = req.body;
+      const targetUserIds: string[] = [];
+      if (userIds && Array.isArray(userIds)) {
+        for (const uid of userIds) {
+          if (!targetUserIds.includes(uid)) targetUserIds.push(uid);
+        }
+      }
+      if (targetUserIds.length === 0) {
+        targetUserIds.push(existingPlan.userId);
+      }
+
+      // Create new plan versions for history preservation
+      const createdPlans = [];
+      for (const uid of targetUserIds) {
+        const mergedPlan = {
+          userId: uid,
+          name: rest.name !== undefined ? rest.name : existingPlan.name,
+          description: rest.description !== undefined ? rest.description : existingPlan.description,
+          patientAge: rest.patientAge !== undefined ? rest.patientAge : existingPlan.patientAge,
+          patientHeight: rest.patientHeight !== undefined ? rest.patientHeight : existingPlan.patientHeight,
+          patientWeight: rest.patientWeight !== undefined ? rest.patientWeight : existingPlan.patientWeight,
+          patientGoal: rest.patientGoal !== undefined ? rest.patientGoal : existingPlan.patientGoal,
+          patientDiet: rest.patientDiet !== undefined ? rest.patientDiet : existingPlan.patientDiet,
+          dietData: rest.dietData !== undefined ? rest.dietData : existingPlan.dietData,
+          foodsToAvoid: rest.foodsToAvoid !== undefined ? rest.foodsToAvoid : existingPlan.foodsToAvoid,
+          dailyTargets: rest.dailyTargets !== undefined ? rest.dailyTargets : existingPlan.dailyTargets,
+          pdfUrl: rest.pdfUrl !== undefined ? rest.pdfUrl : existingPlan.pdfUrl,
+        };
+
+        const plan = await this.dietPlanService.createDietPlan(mergedPlan);
+        createdPlans.push(plan);
+      }
+
       res.status(200).json({
         success: true,
         message: 'Diet plan updated successfully',
-        data: plan
+        data: createdPlans[0],
+        allCreated: createdPlans
       });
     } catch (error) {
       next(error);
