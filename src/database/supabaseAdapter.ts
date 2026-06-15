@@ -1971,6 +1971,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
     return {
       id: row.id,
       userId: row.user_id,
+      userIds: [row.user_id],
       name: row.name,
       description: row.description,
       patientAge: row.patient_age,

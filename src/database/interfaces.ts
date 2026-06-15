@@ -637,6 +637,7 @@ export interface DayDietPlan {
 export interface DietPlan {
   id: string;
   userId: string;
+  userIds?: string[];
   name: string;
   description?: string;
   patientAge?: string;

@@ -16,7 +16,8 @@ export const trackMealSchema = z.object({
 
 export const createDietPlanSchema = z.object({
   body: z.object({
-    userId: z.string().uuid(),
+    userId: z.string().uuid().optional(),
+    userIds: z.array(z.string().uuid()).optional(),
     name: z.string().min(1),
     description: z.string().optional(),
     patientAge: z.string().optional(),
@@ -147,11 +148,38 @@ export class DietPlanController {
 
   createPlanAdmin = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const plan = await this.dietPlanService.createDietPlan(req.body);
+      const { userId, userIds, ...rest } = req.body;
+      
+      const targetUserIds: string[] = [];
+      if (userId) targetUserIds.push(userId);
+      if (userIds && Array.isArray(userIds)) {
+        for (const id of userIds) {
+          if (!targetUserIds.includes(id)) targetUserIds.push(id);
+        }
+      }
+
+      if (targetUserIds.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'At least one userId or userIds must be specified'
+        });
+        return;
+      }
+
+      const createdPlans = [];
+      for (const uid of targetUserIds) {
+        const plan = await this.dietPlanService.createDietPlan({
+          userId: uid,
+          ...rest
+        });
+        createdPlans.push(plan);
+      }
+
       res.status(201).json({
         success: true,
         message: 'Diet plan created successfully',
-        data: plan
+        data: createdPlans[0], // Return first one for frontend compatibility
+        allCreated: createdPlans
       });
     } catch (error) {
       next(error);
