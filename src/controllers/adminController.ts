@@ -22,7 +22,7 @@ export class AdminController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       
-      const MAX_LIMIT = 100;
+      const MAX_LIMIT = 1000;
       const safeLimit = Math.min(limit, MAX_LIMIT);
 
       const result = await this.adminService.getUsers(page, safeLimit);

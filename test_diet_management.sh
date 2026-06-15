@@ -37,6 +37,17 @@ fi
 
 echo "Created User ID: $USER_ID"
 
+# 2.5 Upload PDF (Admin Endpoint)
+echo -e "\n\033[1;36m[2.5] Admin: Uploading PDF diet chart...\033[0m"
+echo "dummy pdf content" > dummy_test.pdf
+PDF_UPLOAD_RESPONSE=$(curl -s -X POST "$API_URL/api/admin/diet-plans/upload-pdf" \
+  -H "x-admin-api-key: $ADMIN_KEY" \
+  -F "pdf=@dummy_test.pdf")
+echo "$PDF_UPLOAD_RESPONSE" | jq .
+
+PDF_URL=$(echo "$PDF_UPLOAD_RESPONSE" | jq -r '.data.url')
+rm dummy_test.pdf
+
 # 3. Create a Diet Plan (Admin Endpoint)
 echo -e "\n\033[1;36m[3] Admin: Creating a diet plan for User...\033[0m"
 CREATE_PLAN_RESPONSE=$(curl -s -X POST "$API_URL/api/admin/diet-plans" \
@@ -56,6 +67,7 @@ CREATE_PLAN_RESPONSE=$(curl -s -X POST "$API_URL/api/admin/diet-plans" \
       {"name": "Water Intake", "target": "3 Liters"},
       {"name": "Daily Calories", "target": "1600 kcal"}
     ],
+    "pdfUrl": "'$PDF_URL'",
     "dietData": [
       {
         "day": 1,

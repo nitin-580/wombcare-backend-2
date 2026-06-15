@@ -212,9 +212,31 @@ export class SupabaseAdapter implements DatabaseAdapter {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
+    // 1. Get emails of users with 'user' role from user_roles
+    const { data: roleData, error: roleError } = await this.supabase
+      .from(this.userRolesTableName)
+      .select('email')
+      .eq('role', 'user');
+
+    if (roleError) {
+      throw new Error(`Failed to fetch user roles: ${roleError.message}`);
+    }
+
+    const emails = (roleData || []).map(r => r.email);
+    if (emails.length === 0) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+      };
+    }
+
+    // 2. Fetch paginated users from early_access_users matching those emails
     const { data, error, count } = await this.supabase
       .from(this.tableName)
       .select('*', { count: 'exact' })
+      .in('email', emails)
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -222,24 +244,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
       throw new Error(`Failed to fetch paginated users: ${error.message}`);
     }
 
-    // Fetch all user roles
-    const { data: rolesData } = await this.supabase
-      .from(this.userRolesTableName)
-      .select('email, role');
-
-    const roleMap = new Map<string, string>();
-    if (rolesData) {
-      for (const r of rolesData) {
-        if (r.email && r.role) {
-          roleMap.set(r.email.toLowerCase(), r.role);
-        }
-      }
-    }
-
     const users = (data || []).map(row => {
       const u = this.mapToUser(row);
-      const role = roleMap.get(u.email.toLowerCase()) || 'user';
-      return { ...u, role };
+      return { ...u, role: 'user' };
     });
 
     return {
