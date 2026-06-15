@@ -9,23 +9,13 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-  console.log('Fetching users from early_access_users...');
-  const { data: users, error: err1 } = await supabase.from('early_access_users').select('*');
+  console.log('--- FETCHING ONE ROW FROM users TABLE ---');
+  const { data: users, error: err1 } = await supabase.from('users').select('*').limit(1);
   if (err1) {
-    console.error('Error early_access_users:', err1);
+    console.error('Error users:', err1);
     return;
   }
-  console.log('Total early access users:', users.length);
-  console.log('Sample users:', users.slice(0, 3));
-
-  console.log('\nFetching from user_roles...');
-  const { data: roles, error: err2 } = await supabase.from('user_roles').select('*');
-  if (err2) {
-    console.error('Error user_roles:', err2);
-    return;
-  }
-  console.log('Total roles in user_roles:', roles.length);
-  console.log('Roles:', roles);
+  console.log('Sample user row:', users[0]);
 }
 
 run();

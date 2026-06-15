@@ -95,13 +95,13 @@ export class SupabaseAdapter implements DatabaseAdapter {
       id: row.id,
       name: row.name,
       email: row.email,
-      phone: row.phone,
-      age: row.age,
-      weight: row.weight,
-      cycleRegularity: row.cycle_regular,
-      symptoms: row.symptoms,
-      country: row.country,
-      source: row.source,
+      phone: row.phone || '',
+      age: row.age || 0,
+      weight: row.weight || 0,
+      cycleRegularity: row.cycle_regular || '',
+      symptoms: row.symptoms || '',
+      country: row.country || '',
+      source: row.source || '',
       createdAt: row.created_at,
     };
   }
@@ -232,9 +232,9 @@ export class SupabaseAdapter implements DatabaseAdapter {
       };
     }
 
-    // 2. Fetch paginated users from early_access_users matching those emails
+    // 2. Fetch paginated users from users table matching those emails
     const { data, error, count } = await this.supabase
-      .from(this.tableName)
+      .from(this.doctorsTableName)
       .select('*', { count: 'exact' })
       .in('email', emails)
       .order('created_at', { ascending: false })
