@@ -83,6 +83,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
   private readonly foodsTableName = 'wombcare_foods';
   private readonly dietPlansTableName = 'wombcare_diet_plans';
   private readonly mealLogsTableName = 'wombcare_meal_logs';
+  private readonly userIpsTableName = 'wombcare_user_ips';
 
 
   constructor() {
@@ -206,6 +207,53 @@ export class SupabaseAdapter implements DatabaseAdapter {
       thisWeek: weekResp.count || 0,
       thisMonth: monthResp.count || 0,
     };
+  }
+
+  async getUserActiveIps(userId: string): Promise<import('./interfaces').UserIp[]> {
+    const { data, error } = await this.supabase
+      .from(this.userIpsTableName)
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new Error(`Failed to fetch active IPs: ${error.message}`);
+    }
+
+    return (data || []).map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      ipAddress: row.ip_address,
+      lastLoginAt: row.last_login_at
+    }));
+  }
+
+  async upsertUserIp(userId: string, ipAddress: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.userIpsTableName)
+      .upsert({
+        user_id: userId,
+        ip_address: ipAddress,
+        last_login_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,ip_address'
+      });
+
+    if (error) {
+      throw new Error(`Failed to upsert user IP: ${error.message}`);
+    }
+  }
+
+  async clearStaleUserIps(userId: string): Promise<void> {
+    const staleTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 24 hours ago
+    const { error } = await this.supabase
+      .from(this.userIpsTableName)
+      .delete()
+      .eq('user_id', userId)
+      .lt('last_login_at', staleTime);
+
+    if (error) {
+      throw new Error(`Failed to clear stale IPs: ${error.message}`);
+    }
   }
 
   async getPaginatedUsers(page: number, limit: number): Promise<PaginatedResult<User>> {

@@ -10,6 +10,7 @@ import { sendWelcomeMail } from "../lib/sendWelcomeMail";
 import { sendDoctorApplicationMail, sendDoctorApprovalMail } from "../lib/sendDoctorMails";
 import { AppointmentRepository } from "../repositories/appointmentRepository";
 import { EarningsRepository } from "../repositories/earningsRepository";
+import { SupabaseAdapter } from "../database/supabaseAdapter";
 
 export class DoctorController {
   constructor(
@@ -116,6 +117,35 @@ export class DoctorController {
       if (!isValidPassword) {
         res.status(401).json({ success: false, message: "Invalid credentials" });
         return;
+      }
+
+      // Enforce Max 2 IP limit
+      const db = new SupabaseAdapter();
+      const clientIp = (
+        (req.headers['x-forwarded-for'] as string) ||
+        req.ip ||
+        req.socket.remoteAddress ||
+        'unknown'
+      ).split(',')[0].trim();
+
+      // Clear sessions older than 24 hours
+      await db.clearStaleUserIps(doctor.id);
+
+      // Get current active IPs
+      const activeIps = await db.getUserActiveIps(doctor.id);
+      const ipList = activeIps.map(item => item.ipAddress);
+
+      if (!ipList.includes(clientIp)) {
+        if (activeIps.length >= 2) {
+          res.status(403).json({
+            success: false,
+            message: "Access Denied: Maximum of 2 concurrent IP addresses allowed. Please log out from other devices."
+          });
+          return;
+        }
+        await db.upsertUserIp(doctor.id, clientIp);
+      } else {
+        await db.upsertUserIp(doctor.id, clientIp);
       }
 
       // Fetch role and onboarding status

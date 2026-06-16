@@ -356,9 +356,20 @@ export class ClassController {
       } else {
         try {
           const profile = await db.getUserProfile(user.id);
+          if (!profile || profile.planStatus !== 'verified') {
+            res.status(403).json({
+              success: false,
+              message: 'Access Denied: You must have a verified plan to join the premium live stream.'
+            });
+            return;
+          }
           userName = profile ? profile.name : 'Student';
-        } catch {
-          userName = 'Student';
+        } catch (err) {
+          res.status(403).json({
+            success: false,
+            message: 'Access Denied: You must have a verified plan to join the premium live stream.'
+          });
+          return;
         }
       }
 

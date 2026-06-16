@@ -255,12 +255,24 @@ export interface Banner {
 export type CreateBannerInput = Omit<Banner, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdateBannerInput = Partial<CreateBannerInput>;
 
+export interface UserIp {
+  id: string;
+  userId: string;
+  ipAddress: string;
+  lastLoginAt: string;
+}
+
 // Database Adapter Interface
 export interface DatabaseAdapter {
   createUser(user: CreateUserInput): Promise<User>;
   getUserByEmail(email: string): Promise<User | null>;
   getRegistrationStats(): Promise<RegistrationStats>;
   getPaginatedUsers(page: number, limit: number): Promise<PaginatedResult<User>>;
+
+  // User IP validation operations
+  getUserActiveIps(userId: string): Promise<UserIp[]>;
+  upsertUserIp(userId: string, ipAddress: string): Promise<void>;
+  clearStaleUserIps(userId: string): Promise<void>;
 
   // Blog operations
   createBlog(blog: CreateBlogInput): Promise<Blog>;
