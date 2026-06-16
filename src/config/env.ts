@@ -24,6 +24,11 @@ const envSchema = z.object({
   // JWT Security
   JWT_SECRET: z.string().min(1),
   
+  // Jitsi JaaS Integration
+  JAAS_APP_ID: z.string().default('vpaas-magic-cookie-fdbdcbb19a264008a307ac74211da6c7'),
+  JAAS_KID: z.string().default('vpaas-magic-cookie-fdbdcbb19a264008a307ac74211da6c7/YOUR_KEY_ID'),
+  JAAS_PRIVATE_KEY: z.string().min(1),
+  
   // CORS
   CORS_ORIGIN: z.string().default('*'),
 });

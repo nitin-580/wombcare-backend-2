@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { ClassService } from '../services/classService';
 import { SupabaseAdapter } from '../database/supabaseAdapter';
 import { z } from 'zod';
+import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
 
 
 export const createCategorySchema = z.object({
@@ -319,6 +321,95 @@ export class ClassController {
         data: messages
       });
     } catch (error) {
+      next(error);
+    }
+  };
+
+  generateJitsiToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const classId = req.params.id as string;
+      const user = req.user;
+
+      if (!user) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const cls = await this.classService.getClassById(classId);
+      if (!cls) {
+        res.status(404).json({ success: false, message: 'Class not found' });
+        return;
+      }
+
+      const isJitsi = cls.videoUrl && cls.videoUrl.startsWith('jitsi:');
+      const roomName = isJitsi ? cls.videoUrl.replace('jitsi:', '') : 'default-wombcare-room';
+
+      let userName = 'Participant';
+      let userEmail = user.email || '';
+      
+      const db = new SupabaseAdapter();
+      if (user.role === 'doctor' || user.role === 'teacher') {
+        const doc = await db.getDoctorById(user.id);
+        userName = doc ? doc.name : 'Wellness Coach';
+      } else if (user.role === 'admin') {
+        userName = 'Administrator';
+      } else {
+        try {
+          const profile = await db.getUserProfile(user.id);
+          userName = profile ? profile.name : 'Student';
+        } catch {
+          userName = 'Student';
+        }
+      }
+
+      const isModerator = user.role === 'doctor' || user.role === 'teacher' || user.role === 'admin';
+
+      const privateKey = env.JAAS_PRIVATE_KEY.replace(/\\n/g, '\n');
+      const kid = env.JAAS_KID;
+      const appId = env.JAAS_APP_ID;
+
+      const payload = {
+        aud: 'jitsi',
+        iss: 'chat',
+        sub: appId,
+        room: roomName,
+        nbf: Math.floor(Date.now() / 1000) - 10,
+        exp: Math.floor(Date.now() / 1000) + 7200,
+        context: {
+          user: {
+            name: userName,
+            email: userEmail,
+            id: user.id,
+            avatar: 'https://wombcare.in/assets/logo.png'
+          },
+          features: {
+            moderator: isModerator,
+            recording: isModerator,
+            livestreaming: isModerator,
+            'screen-sharing': true,
+            'lobby-bypass': true
+          }
+        }
+      };
+
+      const token = jwt.sign(payload, privateKey, {
+        algorithm: 'RS256',
+        keyid: kid,
+        header: {
+          alg: 'RS256',
+          kid: kid,
+          typ: 'JWT'
+        }
+      });
+
+      res.status(200).json({
+        success: true,
+        appId,
+        roomName,
+        jwt: token
+      });
+    } catch (error: any) {
+      console.error('Failed to generate Jitsi token:', error);
       next(error);
     }
   };

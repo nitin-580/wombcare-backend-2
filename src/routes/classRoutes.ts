@@ -60,6 +60,8 @@ router.post('/', adminAuth, validate(createClassSchema), classController.createC
 router.patch('/:id', adminAuth, validate(updateClassSchema), classController.updateClass);
 router.delete('/:id', adminAuth, classController.deleteClass);
 
+router.get('/:id/jitsi-token', userOrDoctorAuth, classController.generateJitsiToken);
+
 // ==========================================
 // LIVE CHAT ROUTES
 // ==========================================
