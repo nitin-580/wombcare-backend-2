@@ -90,8 +90,8 @@ export class DoctorController {
 
       const doctor = await this.doctorRepo.create(teacherData);
       
-      // Sync to user_roles as 'doctor' (translates dynamically to 'teacher' in repository level)
-      await this.doctorRepo.upsertUserRole(doctor.email, 'doctor').catch(console.error);
+      // Sync to user_roles directly as 'teacher'
+      await this.doctorRepo.upsertUserRole(doctor.email, 'teacher').catch(console.error);
 
       sendWelcomeMail(doctor.email, doctor.name).catch(console.error);
 

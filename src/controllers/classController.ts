@@ -387,14 +387,13 @@ export class ClassController {
             name: userName,
             email: userEmail,
             id: user.id,
-            avatar: 'https://wombcare.in/assets/logo.png'
+            avatar: 'https://wombcare.in/assets/logo.png',
+            moderator: isModerator
           },
           features: {
-            moderator: isModerator,
             recording: isModerator,
             livestreaming: isModerator,
-            'screen-sharing': isModerator,
-            'lobby-bypass': true
+            'screen-sharing': isModerator
           }
         }
       };

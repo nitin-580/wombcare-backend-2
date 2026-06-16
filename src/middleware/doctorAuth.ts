@@ -30,10 +30,10 @@ export const doctorAuth = (req: Request, res: Response, next: NextFunction): voi
       role: string;
     };
 
-    if (decoded.role !== 'doctor' && decoded.role !== 'teacher') {
+    if (decoded.role !== 'doctor') {
       res.status(403).json({
         success: false,
-        message: 'Access denied: Requires Doctor or Teacher role',
+        message: 'Access denied: Requires Doctor role',
       });
       return;
     }
