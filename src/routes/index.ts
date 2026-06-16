@@ -27,6 +27,18 @@ router.use('/enrollments', enrollmentRoutes);
 router.use('/profiles', userProfileRoutes);
 router.use('/appointments', appointmentRoutes);
 router.use('/classes', classRoutes);
+
+// Duplicate registration to support both /api/classes/jitsi/webhook and /api/jitsi/webhook
+import { ClassController } from '../controllers/classController';
+import { ClassService } from '../services/classService';
+import { ClassRepository } from '../repositories/classRepository';
+import { SupabaseAdapter } from '../database/supabaseAdapter';
+const indexDbAdapter = new SupabaseAdapter();
+const indexClassRepository = new ClassRepository(indexDbAdapter);
+const indexClassService = new ClassService(indexClassRepository);
+const indexClassController = new ClassController(indexClassService);
+router.post('/jitsi/webhook', indexClassController.handleJitsiWebhook);
+
 router.use('/ai', aiRoutes);
 router.use('/banners', bannerRoutes);
 router.use('/payment', paymentRoutes);

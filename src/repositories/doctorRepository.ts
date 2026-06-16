@@ -36,7 +36,14 @@ export class DoctorRepository {
   }
 
   async getUserRole(email: string): Promise<string | null> {
-    return this.dbAdapter.getUserRole(email);
+    const role = await this.dbAdapter.getUserRole(email);
+    if (role === 'doctor') {
+      const doc = await this.dbAdapter.getDoctorByEmail(email);
+      if (doc && (doc.referralCode?.startsWith('TCH') || doc.specialization === 'Instructor' || doc.credentials === 'Teacher')) {
+        return 'teacher';
+      }
+    }
+    return role;
   }
 
   async createJoinRequest(request: CreateDoctorJoinRequestInput): Promise<DoctorJoinRequest> {

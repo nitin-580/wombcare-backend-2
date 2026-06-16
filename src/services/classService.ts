@@ -400,5 +400,30 @@ export class ClassService {
   async getLiveChatMessages(classId: string) {
     return this.classRepository.getLiveChatMessages(classId);
   }
+
+  async getTeacherStats(teacherId: string) {
+    const classes = await this.classRepository.getClasses();
+    const myClasses = classes.filter(c => c.instructorId === teacherId);
+    const myClassIds = myClasses.map(c => c.id);
+
+    const allAttendance = await this.classRepository.getAllAttendance();
+    const myAttendance = allAttendance.filter(att => myClassIds.includes(att.classId));
+
+    // Unique learners
+    const totalLearners = new Set(myAttendance.map(att => att.userId)).size;
+
+    // Average attendance rate: let's compute average completion percentage
+    let totalPct = 0;
+    myAttendance.forEach(att => {
+      totalPct += att.completionPercentage || 0;
+    });
+    const avgAttendance = myAttendance.length > 0 ? Math.round(totalPct / myAttendance.length) : 0;
+
+    return {
+      assignedClassesCount: myClasses.length,
+      totalLearners,
+      avgAttendance
+    };
+  }
 }
 

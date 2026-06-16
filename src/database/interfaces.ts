@@ -511,6 +511,8 @@ export interface WellnessClass {
   isFeatured: boolean;
   isActive: boolean;
   tags: string[];
+  jitsiSessionStatus?: string;
+  jitsiRecordingUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -531,6 +533,8 @@ export interface CreateWellnessClassInput {
   isFeatured?: boolean;
   isActive?: boolean;
   tags?: string[];
+  jitsiSessionStatus?: string;
+  jitsiRecordingUrl?: string;
 }
 
 export interface VideoPlacement {

@@ -55,6 +55,9 @@ router.get('/analytics', adminAuth, classController.getAdminAnalytics);
 // WELLNESS CLASSES ROUTES
 // ==========================================
 router.get('/', classController.getClasses);
+router.get('/teacher/stats', userOrDoctorAuth, classController.getTeacherStats);
+router.get('/student/recordings', userOrDoctorAuth, classController.getStudentRecordings);
+router.post('/jitsi/webhook', classController.handleJitsiWebhook);
 router.get('/:id', classController.getClassById);
 router.post('/', adminAuth, validate(createClassSchema), classController.createClass);
 router.patch('/:id', adminAuth, validate(updateClassSchema), classController.updateClass);

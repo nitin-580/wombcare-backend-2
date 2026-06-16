@@ -1527,6 +1527,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
       isFeatured: row.is_featured || false,
       isActive: row.is_active !== false,
       tags: Array.isArray(row.tags) ? row.tags : (typeof row.tags === 'string' ? JSON.parse(row.tags) : []),
+      jitsiSessionStatus: row.jitsi_session_status || undefined,
+      jitsiRecordingUrl: row.jitsi_recording_url || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -1622,6 +1624,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
         is_featured: cls.isFeatured || false,
         is_active: cls.isActive !== false,
         tags: Array.isArray(cls.tags) ? cls.tags : [],
+        jitsi_session_status: cls.jitsiSessionStatus || null,
+        jitsi_recording_url: cls.jitsiRecordingUrl || null,
       })
       .select()
       .single();
@@ -1678,6 +1682,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (updates.isFeatured !== undefined) dbUpdates.is_featured = updates.isFeatured;
     if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
     if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+    if (updates.jitsiSessionStatus !== undefined) dbUpdates.jitsi_session_status = updates.jitsiSessionStatus;
+    if (updates.jitsiRecordingUrl !== undefined) dbUpdates.jitsi_recording_url = updates.jitsiRecordingUrl;
 
     dbUpdates.updated_at = new Date().toISOString();
 

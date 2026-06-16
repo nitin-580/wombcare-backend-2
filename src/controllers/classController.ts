@@ -364,6 +364,13 @@ export class ClassController {
 
       const isModerator = user.role === 'doctor' || user.role === 'teacher' || user.role === 'admin';
 
+      if (isModerator) {
+        await this.classService.updateClass(classId, {
+          jitsiSessionStatus: 'LIVE'
+        });
+        console.log(`[DEBUG] Updated class ${classId} state to LIVE for room: ${roomName}`);
+      }
+
       const privateKey = env.JAAS_PRIVATE_KEY.replace(/\\n/g, '\n');
       const kid = env.JAAS_KID;
       const appId = env.JAAS_APP_ID;
@@ -386,7 +393,7 @@ export class ClassController {
             moderator: isModerator,
             recording: isModerator,
             livestreaming: isModerator,
-            'screen-sharing': true,
+            'screen-sharing': isModerator,
             'lobby-bypass': true
           }
         }
@@ -410,6 +417,102 @@ export class ClassController {
       });
     } catch (error: any) {
       console.error('Failed to generate Jitsi token:', error);
+      next(error);
+    }
+  };
+
+  handleJitsiWebhook = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      console.log('[DEBUG] Jitsi webhook received payload:', JSON.stringify(req.body));
+      const { roomName, recordingUrl, url } = req.body;
+      
+      let roomNameResolved = roomName;
+      let urlResolved = recordingUrl || url;
+      
+      if (req.body.fqn) {
+        const parts = req.body.fqn.split('/');
+        roomNameResolved = parts[parts.length - 1];
+      }
+      if (req.body.data) {
+        if (req.body.data.recordingUrl) {
+          urlResolved = req.body.data.recordingUrl;
+        } else if (req.body.data.downloadUrl) {
+          urlResolved = req.body.data.downloadUrl;
+        }
+      }
+
+      if (!roomNameResolved) {
+        res.status(400).json({ success: false, message: 'roomName or fqn is required' });
+        return;
+      }
+
+      const classes = await this.classService.getClasses();
+      const matchingClass = classes.find(c => {
+        return c.videoUrl === `jitsi:${roomNameResolved}` || (c.videoUrl && c.videoUrl.includes(roomNameResolved));
+      });
+
+      if (!matchingClass) {
+        console.log(`[DEBUG] No matching class found for roomName: ${roomNameResolved}`);
+        res.status(404).json({ success: false, message: `Class with room ${roomNameResolved} not found` });
+        return;
+      }
+
+      console.log(`[DEBUG] Found matching class: ${matchingClass.title} (${matchingClass.id})`);
+
+      await this.classService.updateClass(matchingClass.id, {
+        type: 'recorded',
+        videoUrl: urlResolved || matchingClass.videoUrl,
+        jitsiSessionStatus: 'COMPLETED',
+        jitsiRecordingUrl: urlResolved || undefined
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Jitsi recording status updated successfully',
+        classId: matchingClass.id,
+        recordingUrl: urlResolved
+      });
+    } catch (error) {
+      console.error('Jitsi webhook processing failed:', error);
+      next(error);
+    }
+  };
+
+  getStudentRecordings = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+
+      const classes = await this.classService.getClasses();
+      const completedJitsiClasses = classes.filter(c => {
+        return c.jitsiSessionStatus === 'COMPLETED';
+      });
+
+      res.status(200).json({
+        success: true,
+        data: completedJitsiClasses
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getTeacherStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+      }
+      const stats = await this.classService.getTeacherStats(user.id);
+      res.status(200).json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
       next(error);
     }
   };
