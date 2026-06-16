@@ -1509,6 +1509,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
   }
 
   private mapToWellnessClass(row: any): WellnessClass {
+    const parts = (row.instructor_name || '').split(' | ');
     return {
       id: row.id,
       title: row.title,
@@ -1519,7 +1520,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
       youtubeVideoId: row.youtube_video_id,
       googleMeetLink: row.google_meet_link || undefined,
       scheduledAt: row.scheduled_at || undefined,
-      instructorName: row.instructor_name,
+      instructorName: parts[0] || '',
+      instructorId: parts[1] || undefined,
       duration: row.duration,
       categoryId: row.category_id,
       isFeatured: row.is_featured || false,
@@ -1599,6 +1601,10 @@ export class SupabaseAdapter implements DatabaseAdapter {
   // WELLNESS CLASSES
   // ==========================================
   async createWellnessClass(cls: CreateWellnessClassInput): Promise<WellnessClass> {
+    const instructorNameCombined = cls.instructorId 
+      ? `${cls.instructorName} | ${cls.instructorId}` 
+      : cls.instructorName;
+
     const { data, error } = await this.supabase
       .from(this.classesTableName)
       .insert({
@@ -1610,7 +1616,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
         youtube_video_id: cls.youtubeVideoId,
         google_meet_link: cls.googleMeetLink || null,
         scheduled_at: cls.scheduledAt || null,
-        instructor_name: cls.instructorName,
+        instructor_name: instructorNameCombined,
         duration: cls.duration,
         category_id: cls.categoryId,
         is_featured: cls.isFeatured || false,
@@ -1662,7 +1668,11 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (updates.youtubeVideoId !== undefined) dbUpdates.youtube_video_id = updates.youtubeVideoId;
     if (updates.googleMeetLink !== undefined) dbUpdates.google_meet_link = updates.googleMeetLink || null;
     if (updates.scheduledAt !== undefined) dbUpdates.scheduled_at = updates.scheduledAt || null;
-    if (updates.instructorName !== undefined) dbUpdates.instructor_name = updates.instructorName;
+    if (updates.instructorName !== undefined) {
+      dbUpdates.instructor_name = updates.instructorId 
+        ? `${updates.instructorName} | ${updates.instructorId}` 
+        : updates.instructorName;
+    }
     if (updates.duration !== undefined) dbUpdates.duration = updates.duration;
     if (updates.categoryId !== undefined) dbUpdates.category_id = updates.categoryId;
     if (updates.isFeatured !== undefined) dbUpdates.is_featured = updates.isFeatured;

@@ -22,6 +22,7 @@ const doctorController = new DoctorController(doctorRepo, patientRepo, profileRe
 
 // Public Routes
 router.post('/signup', doctorController.signupDoctor);
+router.post('/signup-teacher', doctorController.signupTeacher);
 router.post('/login', doctorController.loginDoctor);
 router.get('/role-check', doctorController.roleCheck);
 router.get('/', doctorController.listDoctors);

@@ -61,6 +61,47 @@ export class DoctorController {
     }
   };
 
+  signupTeacher = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const {
+        name,
+        email,
+        password,
+        phone,
+        specialization,
+        credentials,
+        profilePicture,
+      } = req.body;
+
+      const existingDoctor = await this.doctorRepo.findByEmail(email);
+
+      if (existingDoctor) {
+        res.status(400).json({ success: false, message: "Teacher account already exists with this email" });
+        return;
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const referralCode = "TCH" + Math.floor(100000 + Math.random() * 900000);
+
+      const teacherData: CreateDoctorInput = {
+        name, email, password: hashedPassword, phone,
+        specialization: specialization || "Instructor", credentials: credentials || "Teacher", profilePicture, referralCode,
+      };
+
+      const doctor = await this.doctorRepo.create(teacherData);
+      
+      // Sync to user_roles as 'teacher'
+      await this.doctorRepo.upsertUserRole(doctor.email, 'teacher').catch(console.error);
+
+      sendWelcomeMail(doctor.email, doctor.name).catch(console.error);
+
+      const { password: _, ...doctorResponse } = doctor as any;
+      res.status(201).json({ success: true, message: "Teacher registered successfully", teacher: doctorResponse });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
   loginDoctor = async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, password } = req.body;

@@ -505,6 +505,7 @@ export interface WellnessClass {
   googleMeetLink?: string;
   scheduledAt?: string;
   instructorName: string;
+  instructorId?: string;
   duration: number; // in minutes
   categoryId: string;
   isFeatured: boolean;
@@ -524,6 +525,7 @@ export interface CreateWellnessClassInput {
   googleMeetLink?: string;
   scheduledAt?: string;
   instructorName: string;
+  instructorId?: string;
   duration: number;
   categoryId: string;
   isFeatured?: boolean;
