@@ -47,3 +47,6 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             EMAIL_FROM=hello@earlyaccess.com
             ADMIN_API_KEY=${{ secrets.ADMIN_API_KEY }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JAAS_PRIVATE_KEY=${{ secrets.JAAS_PRIVATE_KEY }}
+            JAAS_KID=${{ secrets.JAAS_KID }}
