@@ -256,6 +256,17 @@ export class SupabaseAdapter implements DatabaseAdapter {
     }
   }
 
+  async clearAllUserIps(userId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from(this.userIpsTableName)
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new Error(`Failed to clear all user IPs: ${error.message}`);
+    }
+  }
+
   async getPaginatedUsers(page: number, limit: number): Promise<PaginatedResult<User>> {
     const from = (page - 1) * limit;
     const to = from + limit - 1;

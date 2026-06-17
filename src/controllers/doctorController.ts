@@ -399,4 +399,33 @@ export class DoctorController {
       res.status(500).json({ success: false, message: error.message });
     }
   };
+
+  logoutOtherDevices = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        res.status(400).json({ success: false, message: "Email and password are required" });
+        return;
+      }
+
+      const doctor = await this.doctorRepo.findByEmail(email);
+      if (!doctor || !doctor.password) {
+        res.status(404).json({ success: false, message: "User not found" });
+        return;
+      }
+
+      const isValidPassword = await bcrypt.compare(password, doctor.password);
+      if (!isValidPassword) {
+        res.status(401).json({ success: false, message: "Invalid credentials" });
+        return;
+      }
+
+      const db = new SupabaseAdapter();
+      await db.clearAllUserIps(doctor.id);
+
+      res.status(200).json({ success: true, message: "Successfully logged out from all other devices. You can now log in." });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
 }

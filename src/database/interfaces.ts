@@ -273,6 +273,7 @@ export interface DatabaseAdapter {
   getUserActiveIps(userId: string): Promise<UserIp[]>;
   upsertUserIp(userId: string, ipAddress: string): Promise<void>;
   clearStaleUserIps(userId: string): Promise<void>;
+  clearAllUserIps(userId: string): Promise<void>;
 
   // Blog operations
   createBlog(blog: CreateBlogInput): Promise<Blog>;
