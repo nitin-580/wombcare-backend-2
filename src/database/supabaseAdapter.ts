@@ -1002,7 +1002,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
   async createUserProfile(profile: CreateUserProfileInput): Promise<UserProfile> {
     const { data, error } = await this.supabase
       .from(this.userProfilesTableName)
-      .insert({
+      .upsert({
         name: profile.name,
         email: profile.email,
         age: profile.age,
@@ -1033,6 +1033,8 @@ export class SupabaseAdapter implements DatabaseAdapter {
         next_appointment: profile.nextAppointment,
         sleep: profile.sleep ?? 0,
         journal: profile.journal
+      }, {
+        onConflict: 'id'
       })
       .select()
       .single();
