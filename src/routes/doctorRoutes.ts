@@ -45,6 +45,7 @@ router.get('/admin/:id/earnings', adminAuth, doctorController.adminGetDoctorEarn
 router.patch('/admin/:id/profile', adminAuth, doctorController.adminUpdateDoctorProfile);
 router.get('/admin/active-list', adminAuth, doctorController.adminGetActiveDoctors);
 router.get('/admin/search-users', adminAuth, doctorController.adminSearchUsers);
+router.get('/admin/:id/details', adminAuth, doctorController.adminGetDoctorDetails);
 router.post('/admin/map-user', adminAuth, doctorController.adminMapUser);
 
 export default router;

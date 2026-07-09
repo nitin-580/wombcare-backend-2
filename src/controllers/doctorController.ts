@@ -763,4 +763,49 @@ export class DoctorController {
       res.status(500).json({ success: false, message: error.message });
     }
   };
+
+  adminGetDoctorDetails = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      const { id } = req.params;
+
+      // 1. Fetch referral count
+      const { count: referralCount, error: refCountErr } = await supabase
+        .from('referrals')
+        .select('*', { count: 'exact', head: true })
+        .eq('doctorId', id);
+
+      if (refCountErr) throw refCountErr;
+
+      // 2. Fetch mapped patients list
+      const { data: mappedPatients, error: patientsErr } = await supabase
+        .from('patients')
+        .select('id, name, email, phone, age, weight, symptoms, created_at')
+        .eq('referred_by', id)
+        .order('created_at', { ascending: false });
+
+      if (patientsErr) throw patientsErr;
+
+      // 3. Fetch mapped referrals list
+      const { data: mappedReferrals, error: referralsErr } = await supabase
+        .from('referrals')
+        .select('id, patientName, email, mobile, problem, referralStatus, created_at')
+        .eq('doctorId', id)
+        .order('created_at', { ascending: false });
+
+      if (referralsErr) throw referralsErr;
+
+      res.status(200).json({
+        success: true,
+        referralCount: referralCount || 0,
+        convertedCount: mappedPatients ? mappedPatients.length : 0,
+        patients: mappedPatients || [],
+        referrals: mappedReferrals || []
+      });
+    } catch (error: any) {
+      console.error('adminGetDoctorDetails error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
 }
