@@ -770,43 +770,56 @@ export class DoctorController {
       const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
       const id = req.params.id as string;
 
+      let doctorReferralCode = '';
+      let doctorEmail = '';
+      let doctorUuid = '';
+
       const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-      if (!isValidUUID) {
-        res.status(200).json({
-          success: true,
-          referralCount: 0,
-          convertedCount: 0,
-          patients: [],
-          referrals: []
-        });
-        return;
+      if (isValidUUID) {
+        doctorUuid = id;
+        const { data: docUser } = await supabase
+          .from('users')
+          .select('email, referral_code')
+          .eq('id', id)
+          .single();
+
+        if (docUser) {
+          doctorEmail = docUser.email;
+          doctorReferralCode = docUser.referral_code || '';
+        }
+      } else {
+        // If not UUID, it is the doctor's email (unregistered request)
+        doctorEmail = id;
       }
 
-      // 1. Fetch referral count
-      const { count: referralCount, error: refCountErr } = await supabase
-        .from('referrals')
-        .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', id);
-
-      if (refCountErr) throw refCountErr;
+      // 1. Fetch referrals
+      let referralsQuery = supabase.from('referrals').select('id, patient_name, email, mobile, problem, referral_status, created_at');
+      if (doctorUuid) {
+        if (doctorReferralCode) {
+          referralsQuery = referralsQuery.or(`doctor_id.eq.${doctorUuid},doctor_referral_code.eq.${doctorReferralCode}`);
+        } else {
+          referralsQuery = referralsQuery.eq('doctor_id', doctorUuid);
+        }
+      } else if (doctorEmail) {
+        // Unregistered doctor: match by doctor_id equal to email
+        referralsQuery = referralsQuery.eq('doctor_id', doctorEmail);
+      } else {
+        referralsQuery = referralsQuery.eq('doctor_id', 'nonexistent-placeholder');
+      }
+      const { data: mappedReferrals, error: referralsErr } = await referralsQuery.order('created_at', { ascending: false });
+      if (referralsErr) throw referralsErr;
 
       // 2. Fetch mapped patients list
-      const { data: mappedPatients, error: patientsErr } = await supabase
-        .from('patients')
-        .select('id, name, email, phone, age, weight, symptoms, created_at')
-        .eq('referred_by', id)
-        .order('created_at', { ascending: false });
-
+      let patientsQuery = supabase.from('patients').select('id, name, email, phone, age, weight, symptoms, created_at');
+      if (doctorUuid) {
+        patientsQuery = patientsQuery.or(`referred_by.eq.${doctorUuid},referred_id.eq.${doctorUuid}`);
+      } else if (doctorEmail) {
+        patientsQuery = patientsQuery.eq('referred_by', doctorEmail);
+      } else {
+        patientsQuery = patientsQuery.eq('referred_by', 'nonexistent-placeholder');
+      }
+      const { data: mappedPatients, error: patientsErr } = await patientsQuery.order('created_at', { ascending: false });
       if (patientsErr) throw patientsErr;
-
-      // 3. Fetch mapped referrals list
-      const { data: mappedReferrals, error: referralsErr } = await supabase
-        .from('referrals')
-        .select('id, patient_name, email, mobile, problem, referral_status, created_at')
-        .eq('doctor_id', id)
-        .order('created_at', { ascending: false });
-
-      if (referralsErr) throw referralsErr;
 
       // Translate the snake_case referrals database fields to camelCase expected by the frontend
       const camelCaseReferrals = (mappedReferrals || []).map((r: any) => ({
@@ -821,7 +834,7 @@ export class DoctorController {
 
       res.status(200).json({
         success: true,
-        referralCount: referralCount || 0,
+        referralCount: camelCaseReferrals.length,
         convertedCount: mappedPatients ? mappedPatients.length : 0,
         patients: mappedPatients || [],
         referrals: camelCaseReferrals || []
