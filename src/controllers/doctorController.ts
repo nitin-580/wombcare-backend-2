@@ -636,13 +636,13 @@ export class DoctorController {
           const { error: referralError } = await supabase
             .from('referrals')
             .insert([{
-              patientName: user.name,
+              patient_name: user.name,
               mobile: user.phone || '',
               email: user.email.toLowerCase(),
               problem: user.symptoms || '',
-              doctorId: doctorId,
-              doctorReferralCode: doctorReferralCode || '',
-              referralStatus: 'pending'
+              doctor_id: doctorId,
+              doctor_referral_code: doctorReferralCode || '',
+              referral_status: 'pending'
             }]);
 
           if (referralError) throw referralError;
@@ -677,13 +677,13 @@ export class DoctorController {
           const { error } = await supabase
             .from('referrals')
             .insert([{
-              patientName: user.name,
+              patient_name: user.name,
               mobile: user.phone || '',
               email: user.email,
               problem: user.symptoms || '',
-              doctorId: doctorId,
-              doctorReferralCode: doctorReferralCode || '',
-              referralStatus: 'pending'
+              doctor_id: doctorId,
+              doctor_referral_code: doctorReferralCode || '',
+              referral_status: 'pending'
             }]);
 
           if (error) throw error;
@@ -774,7 +774,7 @@ export class DoctorController {
       const { count: referralCount, error: refCountErr } = await supabase
         .from('referrals')
         .select('*', { count: 'exact', head: true })
-        .eq('doctorId', id);
+        .eq('doctor_id', id);
 
       if (refCountErr) throw refCountErr;
 
@@ -790,18 +790,29 @@ export class DoctorController {
       // 3. Fetch mapped referrals list
       const { data: mappedReferrals, error: referralsErr } = await supabase
         .from('referrals')
-        .select('id, patientName, email, mobile, problem, referralStatus, created_at')
-        .eq('doctorId', id)
+        .select('id, patient_name, email, mobile, problem, referral_status, created_at')
+        .eq('doctor_id', id)
         .order('created_at', { ascending: false });
 
       if (referralsErr) throw referralsErr;
+
+      // Translate the snake_case referrals database fields to camelCase expected by the frontend
+      const camelCaseReferrals = (mappedReferrals || []).map((r: any) => ({
+        id: r.id,
+        patientName: r.patient_name,
+        email: r.email,
+        mobile: r.mobile,
+        problem: r.problem,
+        referralStatus: r.referral_status,
+        created_at: r.created_at
+      }));
 
       res.status(200).json({
         success: true,
         referralCount: referralCount || 0,
         convertedCount: mappedPatients ? mappedPatients.length : 0,
         patients: mappedPatients || [],
-        referrals: mappedReferrals || []
+        referrals: camelCaseReferrals || []
       });
     } catch (error: any) {
       console.error('adminGetDoctorDetails error:', error);
