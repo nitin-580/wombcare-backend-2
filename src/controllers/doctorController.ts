@@ -708,27 +708,28 @@ export class DoctorController {
         return;
       }
 
-      // 1. Fetch user roles where role is user
-      const { data: userRoleData, error: userRoleError } = await supabase
+      // 1. Fetch all doctor emails from user_roles to exclude them
+      const { data: doctorRoleData, error: doctorRoleError } = await supabase
         .from('user_roles')
         .select('email')
-        .eq('role', 'user');
+        .eq('role', 'doctor');
 
-      if (userRoleError) throw userRoleError;
+      if (doctorRoleError) throw doctorRoleError;
 
-      const userEmails = (userRoleData || []).map((r: any) => r.email);
-      if (userEmails.length === 0) {
-        res.status(200).json({ success: true, data: [] });
-        return;
-      }
+      const doctorEmails = (doctorRoleData || []).map((r: any) => r.email.toLowerCase());
 
       // 2. Fetch users matching search query (name or email) limited to 20 records
-      const { data: matchedUsers, error: matchError } = await supabase
+      let queryBuilder = supabase
         .from('users')
         .select('id, name, email, phone')
-        .in('email', userEmails)
         .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
         .limit(20);
+
+      if (doctorEmails.length > 0) {
+        queryBuilder = queryBuilder.not('email', 'in', `(${doctorEmails.join(',')})`);
+      }
+
+      const { data: matchedUsers, error: matchError } = await queryBuilder;
 
       if (matchError) throw matchError;
 
@@ -801,8 +802,8 @@ export class DoctorController {
           referralsQuery = referralsQuery.eq('doctor_id', doctorUuid);
         }
       } else if (doctorEmail) {
-        // Unregistered doctor: match by doctor_id equal to email
-        referralsQuery = referralsQuery.eq('doctor_id', doctorEmail);
+        // Unregistered doctor: doctor_id is UUID column (querying it by email throws an error). Query by doctor_referral_code instead.
+        referralsQuery = referralsQuery.eq('doctor_referral_code', doctorEmail);
       } else {
         referralsQuery = referralsQuery.eq('doctor_id', 'nonexistent-placeholder');
       }
@@ -814,7 +815,8 @@ export class DoctorController {
       if (doctorUuid) {
         patientsQuery = patientsQuery.or(`referred_by.eq.${doctorUuid},referred_id.eq.${doctorUuid}`);
       } else if (doctorEmail) {
-        patientsQuery = patientsQuery.eq('referred_by', doctorEmail);
+        // Unregistered doctor: referred_by is UUID column. Query by referred_id (text column) instead.
+        patientsQuery = patientsQuery.eq('referred_id', doctorEmail);
       } else {
         patientsQuery = patientsQuery.eq('referred_by', 'nonexistent-placeholder');
       }
