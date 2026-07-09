@@ -511,11 +511,34 @@ export class DoctorController {
       if (userEmails.length > 0) {
         const { data: regData, error: regError } = await supabase
           .from('users')
-          .select('id, name, email, phone, age, weight, cycleRegularity, symptoms, country')
+          .select('id, name, email, phone')
           .in('email', userEmails);
 
         if (regError) throw regError;
-        registrations = regData || [];
+
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('wombcare_user_profiles')
+          .select('email, age, weight, cycle_length, symptoms')
+          .in('email', userEmails);
+
+        if (profilesError) {
+          console.error('Error fetching user profiles:', profilesError);
+        }
+
+        registrations = (regData || []).map((u: any) => {
+          const profile = (profilesData || []).find((p: any) => p.email?.toLowerCase() === u.email?.toLowerCase());
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            phone: u.phone || '',
+            age: profile?.age || 0,
+            weight: profile?.weight || 0,
+            cycleRegularity: profile?.cycle_length ? `${profile.cycle_length} days` : 'Regular',
+            symptoms: Array.isArray(profile?.symptoms) ? profile.symptoms.join(', ') : (profile?.symptoms || ''),
+            country: 'India'
+          };
+        });
       }
 
       res.status(200).json({
