@@ -44,3 +44,44 @@ export async function sendReferralWelcomeMail(email: string, name: string, passw
   console.log(`[Email] Referral onboarding mail sent successfully to: ${email}`);
   return result;
 }
+
+export async function sendReferralInformativeMail(email: string, name: string, doctorName: string) {
+  console.log(`[Email] Sending referral informative mail to: ${email}`);
+  const result = await resend.emails.send({
+    from: 'WombCare <support@wombcare.in>',
+    to: email,
+    subject: 'You have been referred to WombCare! ✨',
+    html: `
+      <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #ffffff; color: #1a1a1a; border-radius: 16px; border: 1px solid #f0f0f0;">
+        <div style="margin-bottom: 32px;">
+          <h1 style="color: #6d28d9; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.025em;">WombCare</h1>
+        </div>
+        
+        <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 16px; color: #111827;">Hello ${name}! ✨</h2>
+        
+        <p style="font-size: 16px; line-height: 1.6; color: #4b5563; margin-bottom: 24px;">
+          We are pleased to inform you that <strong>Dr. ${doctorName}</strong> has referred you to WombCare, a dedicated coaching platform for PCOD/PCOS lifestyle management.
+        </p>
+        
+        <div style="background-color: #f5f3ff; border-left: 4px solid #6d28d9; padding: 20px; border-radius: 8px; margin-bottom: 32px;">
+          <p style="margin: 0; font-size: 15px; color: #374151;">
+            Our team of dedicated coaches and lifestyle experts will get in touch with you shortly to assist with your onboarding.
+          </p>
+        </div>
+
+        <p style="font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 32px;">
+          If you have any immediate questions, feel free to reply directly to this email.
+        </p>
+        
+        <hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 32px 0;">
+        
+        <p style="font-size: 14px; color: #9ca3af; margin: 0;">
+          Warm regards,<br>
+          <strong>The WombCare Team</strong>
+        </p>
+      </div>
+    `,
+  });
+  console.log(`[Email] Referral informative mail sent successfully to: ${email}`);
+  return result;
+}

@@ -557,43 +557,209 @@ export class DoctorController {
       const { createClient } = require('@supabase/supabase-js');
       const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
-      const { action, user, doctorId, doctorName, doctorReferralCode } = req.body;
+      const { action, user, doctorId, doctorName, doctorReferralCode, isManual } = req.body;
 
-      if (action === 'patient') {
-        const { error } = await supabase
-          .from('patients')
-          .insert([{
-            name: user.name,
-            email: user.email,
-            phone: user.phone || '',
-            age: Number(user.age) || 0,
-            weight: Number(user.weight) || 0,
-            cycle_regular: user.cycleRegularity || 'Regular',
-            symptoms: user.symptoms || '',
-            country: user.country || 'India',
-            referred_by: doctorId
-          }]);
+      if (isManual) {
+        if (action === 'patient') {
+          // 1. Generate temp password & hash it
+          const tempPassword = 'WombCare@' + Math.floor(1000 + Math.random() * 9000);
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-        if (error) throw error;
+          // 2. Insert into users table
+          const { data: newUser, error: userError } = await supabase
+            .from('users')
+            .insert([{
+              name: user.name,
+              email: user.email.toLowerCase(),
+              password: hashedPassword,
+              phone: user.phone || ''
+            }])
+            .select()
+            .single();
+
+          if (userError) throw userError;
+
+          // 3. Insert into user_roles table
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert([{
+              email: user.email.toLowerCase(),
+              role: 'user'
+            }]);
+
+          if (roleError) throw roleError;
+
+          // 4. Insert into wombcare_user_profiles table
+          const { error: profileError } = await supabase
+            .from('wombcare_user_profiles')
+            .insert([{
+              id: newUser.id,
+              name: user.name,
+              email: user.email.toLowerCase(),
+              age: Number(user.age) || 0,
+              weight: Number(user.weight) || 0,
+              symptoms: user.symptoms ? [user.symptoms] : [],
+              profile_completed: false,
+              active_plan: 'Premium 90 Day Wellness Plan',
+              plan_status: 'active',
+              is_premium: true
+            }]);
+
+          if (profileError) throw profileError;
+
+          // 5. Insert into patients table
+          const { error: patientError } = await supabase
+            .from('patients')
+            .insert([{
+              name: user.name,
+              email: user.email.toLowerCase(),
+              phone: user.phone || '',
+              age: Number(user.age) || 0,
+              weight: Number(user.weight) || 0,
+              cycle_regular: 'Regular',
+              symptoms: user.symptoms || '',
+              country: user.country || 'India',
+              referred_by: doctorId
+            }]);
+
+          if (patientError) throw patientError;
+
+          // 6. Send welcome email containing login credentials
+          try {
+            const { sendReferralWelcomeMail } = require('../lib/sendReferralWelcomeMail');
+            await sendReferralWelcomeMail(user.email.toLowerCase(), user.name, tempPassword);
+          } catch (mailErr) {
+            console.error('Failed to send welcome email:', mailErr);
+          }
+        } else {
+          // Referral manual mapping
+          const { error: referralError } = await supabase
+            .from('referrals')
+            .insert([{
+              patientName: user.name,
+              mobile: user.phone || '',
+              email: user.email.toLowerCase(),
+              problem: user.symptoms || '',
+              doctorId: doctorId,
+              doctorReferralCode: doctorReferralCode || '',
+              referralStatus: 'pending'
+            }]);
+
+          if (referralError) throw referralError;
+
+          // Send informative email
+          try {
+            const { sendReferralInformativeMail } = require('../lib/sendReferralWelcomeMail');
+            await sendReferralInformativeMail(user.email.toLowerCase(), user.name, doctorName || 'your Doctor');
+          } catch (mailErr) {
+            console.error('Failed to send referral email:', mailErr);
+          }
+        }
       } else {
-        const { error } = await supabase
-          .from('referrals')
-          .insert([{
-            patientName: user.name,
-            mobile: user.phone || '',
-            email: user.email,
-            problem: user.symptoms || '',
-            doctorId: doctorId,
-            doctorReferralCode: doctorReferralCode || '',
-            referralStatus: 'pending'
-          }]);
+        // Map existing registration
+        if (action === 'patient') {
+          const { error } = await supabase
+            .from('patients')
+            .insert([{
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              age: Number(user.age) || 0,
+              weight: Number(user.weight) || 0,
+              cycle_regular: user.cycleRegularity || 'Regular',
+              symptoms: user.symptoms || '',
+              country: user.country || 'India',
+              referred_by: doctorId
+            }]);
 
-        if (error) throw error;
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('referrals')
+            .insert([{
+              patientName: user.name,
+              mobile: user.phone || '',
+              email: user.email,
+              problem: user.symptoms || '',
+              doctorId: doctorId,
+              doctorReferralCode: doctorReferralCode || '',
+              referralStatus: 'pending'
+            }]);
+
+          if (error) throw error;
+        }
       }
 
       res.status(200).json({ success: true });
     } catch (error: any) {
       console.error('adminMapUser error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  adminSearchUsers = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+      const q = (req.query.q as string || '').trim();
+      if (!q || q.length < 2) {
+        res.status(200).json({ success: true, data: [] });
+        return;
+      }
+
+      // 1. Fetch user roles where role is user
+      const { data: userRoleData, error: userRoleError } = await supabase
+        .from('user_roles')
+        .select('email')
+        .eq('role', 'user');
+
+      if (userRoleError) throw userRoleError;
+
+      const userEmails = (userRoleData || []).map((r: any) => r.email);
+      if (userEmails.length === 0) {
+        res.status(200).json({ success: true, data: [] });
+        return;
+      }
+
+      // 2. Fetch users matching search query (name or email) limited to 20 records
+      const { data: matchedUsers, error: matchError } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .in('email', userEmails)
+        .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+        .limit(20);
+
+      if (matchError) throw matchError;
+
+      // 3. Fetch user profiles to attach additional metrics
+      let result = [];
+      if (matchedUsers && matchedUsers.length > 0) {
+        const matchedEmails = matchedUsers.map((u: any) => u.email);
+        const { data: profilesData } = await supabase
+          .from('wombcare_user_profiles')
+          .select('email, age, weight, cycle_length, symptoms')
+          .in('email', matchedEmails);
+
+        result = matchedUsers.map((u: any) => {
+          const profile = (profilesData || []).find((p: any) => p.email?.toLowerCase() === u.email?.toLowerCase());
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            phone: u.phone || '',
+            age: profile?.age || 0,
+            weight: profile?.weight || 0,
+            cycleRegularity: profile?.cycle_length ? `${profile.cycle_length} days` : 'Regular',
+            symptoms: Array.isArray(profile?.symptoms) ? profile.symptoms.join(', ') : (profile?.symptoms || ''),
+            country: 'India'
+          };
+        });
+      }
+
+      res.status(200).json({ success: true, data: result });
+    } catch (error: any) {
+      console.error('adminSearchUsers error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   };
