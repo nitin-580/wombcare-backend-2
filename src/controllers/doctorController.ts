@@ -805,7 +805,7 @@ export class DoctorController {
         // Unregistered doctor: doctor_id is UUID column (querying it by email throws an error). Query by doctor_referral_code instead.
         referralsQuery = referralsQuery.eq('doctor_referral_code', doctorEmail);
       } else {
-        referralsQuery = referralsQuery.eq('doctor_id', 'nonexistent-placeholder');
+        referralsQuery = referralsQuery.eq('doctor_id', '00000000-0000-0000-0000-000000000000');
       }
       const { data: mappedReferrals, error: referralsErr } = await referralsQuery.order('created_at', { ascending: false });
       if (referralsErr) throw referralsErr;
@@ -814,11 +814,9 @@ export class DoctorController {
       let patientsQuery = supabase.from('patients').select('id, name, email, phone, age, weight, symptoms, created_at');
       if (doctorUuid) {
         patientsQuery = patientsQuery.or(`referred_by.eq.${doctorUuid},referred_id.eq.${doctorUuid}`);
-      } else if (doctorEmail) {
-        // Unregistered doctor: referred_by is UUID column. Query by referred_id (text column) instead.
-        patientsQuery = patientsQuery.eq('referred_id', doctorEmail);
       } else {
-        patientsQuery = patientsQuery.eq('referred_by', 'nonexistent-placeholder');
+        // Unregistered doctor: referred_by and referred_id are UUID columns. Query by dummy UUID to return empty results safely.
+        patientsQuery = patientsQuery.eq('referred_by', '00000000-0000-0000-0000-000000000000');
       }
       const { data: mappedPatients, error: patientsErr } = await patientsQuery.order('created_at', { ascending: false });
       if (patientsErr) throw patientsErr;
