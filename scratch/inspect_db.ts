@@ -55,6 +55,9 @@ async function inspectSchema() {
 
       console.log('\n--- users definition ---');
       console.log(JSON.stringify(schema.definitions.users, null, 2));
+
+      console.log('\n--- wombcare_user_profiles definition ---');
+      console.log(JSON.stringify(schema.definitions.wombcare_user_profiles, null, 2));
     } else {
       console.log('No definitions found in schema root.');
     }

@@ -531,7 +531,7 @@ export class SupabaseAdapter implements DatabaseAdapter {
     if (doctor.name) row.name = doctor.name;
     if (doctor.email) row.email = doctor.email;
     if (doctor.password) row.password = doctor.password;
-    if (doctor.phone) row.phone = doctor.phone;
+    if (doctor.phone !== undefined) row.phone = doctor.phone;
     if (doctor.specialization) row.specialization = doctor.specialization;
     if (doctor.credentials) row.credentials = doctor.credentials;
     if (doctor.referralCode) row.referral_code = doctor.referralCode;
