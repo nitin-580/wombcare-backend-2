@@ -768,7 +768,19 @@ export class DoctorController {
     try {
       const { createClient } = require('@supabase/supabase-js');
       const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-      const { id } = req.params;
+      const id = req.params.id as string;
+
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      if (!isValidUUID) {
+        res.status(200).json({
+          success: true,
+          referralCount: 0,
+          convertedCount: 0,
+          patients: [],
+          referrals: []
+        });
+        return;
+      }
 
       // 1. Fetch referral count
       const { count: referralCount, error: refCountErr } = await supabase
