@@ -560,6 +560,34 @@ export class DoctorController {
 
       const { action, user, doctorId, doctorName, doctorReferralCode, isManual } = req.body;
 
+      let resolvedDoctorUuid = '';
+      let resolvedReferralCode = doctorReferralCode || '';
+
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doctorId);
+      if (isValidUUID) {
+        resolvedDoctorUuid = doctorId;
+      } else {
+        // Find doctor user by email
+        const { data: docUser } = await supabase
+          .from('users')
+          .select('id, referral_code')
+          .eq('email', doctorId)
+          .maybeSingle();
+
+        if (docUser) {
+          resolvedDoctorUuid = docUser.id;
+          if (!resolvedReferralCode) {
+            resolvedReferralCode = docUser.referral_code || '';
+          }
+        } else {
+          res.status(400).json({ 
+            success: false, 
+            message: "Doctor user record not found. Please verify they have been approved and registered." 
+          });
+          return;
+        }
+      }
+
       if (isManual) {
         if (action === 'patient') {
           // 1. Generate temp password & hash it
@@ -620,7 +648,7 @@ export class DoctorController {
               cycle_regular: 'Regular',
               symptoms: user.symptoms || '',
               country: user.country || 'India',
-              referred_by: doctorId
+              referred_by: resolvedDoctorUuid
             }]);
 
           if (patientError) throw patientError;
@@ -641,8 +669,8 @@ export class DoctorController {
               mobile: user.phone || '',
               email: user.email.toLowerCase(),
               problem: user.symptoms || '',
-              doctor_id: doctorId,
-              doctor_referral_code: doctorReferralCode || '',
+              doctor_id: resolvedDoctorUuid,
+              doctor_referral_code: resolvedReferralCode || '',
               referral_status: 'pending'
             }]);
 
@@ -670,7 +698,7 @@ export class DoctorController {
               cycle_regular: user.cycleRegularity || 'Regular',
               symptoms: user.symptoms || '',
               country: user.country || 'India',
-              referred_by: doctorId
+              referred_by: resolvedDoctorUuid
             }]);
 
           if (error) throw error;
@@ -682,8 +710,8 @@ export class DoctorController {
               mobile: user.phone || '',
               email: user.email,
               problem: user.symptoms || '',
-              doctor_id: doctorId,
-              doctor_referral_code: doctorReferralCode || '',
+              doctor_id: resolvedDoctorUuid,
+              doctor_referral_code: resolvedReferralCode || '',
               referral_status: 'pending'
             }]);
 
