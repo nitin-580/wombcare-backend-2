@@ -287,6 +287,7 @@ export class DoctorController {
           credentials: data.qualification,
           referralCode: 'DOC' + Math.floor(100000 + Math.random() * 900000)
         });
+        await this.doctorRepo.upsertUserRole(data.email, 'doctor').catch(console.error);
         sendDoctorApprovalMail(data.email, data.fullName, tempPassword).catch(console.error);
       }
       res.status(200).json({ success: true, data });
@@ -452,7 +453,7 @@ export class DoctorController {
 
       const emails = (roleData || []).map((r: any) => r.email);
       const approvedEmails = (approvedReqs || []).map((r: any) => r.email);
-      const allEmails = Array.from(new Set([...emails, ...approvedEmails]));
+      const allEmails = Array.from(new Set([...emails, ...approvedEmails].map(e => e.toLowerCase())));
 
       let usersData: any[] = [];
       if (allEmails.length > 0) {
@@ -791,6 +792,16 @@ export class DoctorController {
       } else {
         // If not UUID, it is the doctor's email (unregistered request)
         doctorEmail = id;
+        const { data: docUser } = await supabase
+          .from('users')
+          .select('id, referral_code')
+          .eq('email', doctorEmail)
+          .maybeSingle();
+
+        if (docUser) {
+          doctorUuid = docUser.id;
+          doctorReferralCode = docUser.referral_code || '';
+        }
       }
 
       // 1. Fetch referrals
@@ -834,6 +845,8 @@ export class DoctorController {
 
       res.status(200).json({
         success: true,
+        id: doctorUuid || id,
+        referralCode: doctorReferralCode || '',
         referralCount: camelCaseReferrals.length,
         convertedCount: mappedPatients ? mappedPatients.length : 0,
         patients: mappedPatients || [],
